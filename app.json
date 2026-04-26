@@ -24,7 +24,8 @@
       "bundler": "metro"
     },
     "plugins": [
-      ["expo-notifications", { "color": "#C89A3C" }]
+      ["expo-notifications", { "color": "#C89A3C" }],
+      ["expo-build-properties", { "android": { "kotlinVersion": "1.9.25" } }]
     ],
     "extra": {
       "eas": {

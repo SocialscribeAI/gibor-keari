@@ -43,7 +43,7 @@ jobs:
 
       - name: Build debug APK
         working-directory: android
-        run: ./gradlew assembleDebug --no-daemon -Pandroid.kotlinVersion=1.9.25
+        run: ./gradlew assembleDebug --no-daemon
 
       - name: Rename APK
         run: |
