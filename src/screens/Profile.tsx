@@ -24,6 +24,8 @@ import {
   Brain,
   Bot,
   Users,
+  MessageCircle,
+  Bug,
 } from 'lucide-react-native';
 import { Screen } from '../components/Screen';
 import { Avatar } from '../components/Avatar';
@@ -31,6 +33,7 @@ import { PrivacyNote } from '../components/PrivacyNote';
 import { useStore } from '../store/useStore';
 import { useStreak } from '../hooks/useStreak';
 import { useTheme } from '../constants/theme';
+import { sendFeedback, reportBug } from '../services/feedback';
 
 interface Props {
   onNavigateToReminders: () => void;
@@ -300,6 +303,11 @@ export const Profile: React.FC<Props> = ({
       <Row icon={User} label="Rename identity" onPress={openRename} />
       <Row icon={RefreshCw} label="Regenerate identity" onPress={regenerateIdentity} />
       <Row icon={Download} label="Export my data" onPress={handleExport} />
+
+      <Text className="text-guard-accent text-xs uppercase tracking-widest mb-3 mt-4">Feedback</Text>
+      <Row icon={MessageCircle} label="Send feedback / feature idea" onPress={() => { void sendFeedback(); }} />
+      <Row icon={Bug} label="Report a bug" onPress={() => { void reportBug(); }} />
+
       <Row icon={Trash2} label="Reset all data" onPress={handleReset} danger />
 
       <Modal visible={renameOpen} transparent animationType="fade" onRequestClose={() => setRenameOpen(false)}>

@@ -6,6 +6,8 @@ import { PunishmentModeWrapper } from './components/PunishmentModeWrapper';
 import { SplashScreen } from './components/SplashScreen';
 import { CheckInModal } from './components/CheckInModal';
 import { ThemeManager } from './components/ThemeManager';
+import { UpdateBanner } from './components/UpdateBanner';
+import { AlphaBanner } from './components/AlphaBanner';
 import { useCommunityStore, useCommunityConfig } from './store/useCommunityStore';
 import { notificationService } from './services/notificationService';
 import { savePushToken } from './services/community';
@@ -60,6 +62,8 @@ export default function App() {
           <SplashScreen key="splash" onComplete={() => setIsSplashComplete(true)} />
         ) : (
           <PunishmentModeWrapper key="main">
+            <AlphaBanner />
+            <UpdateBanner />
             <Navigator />
             <CheckInModal />
           </PunishmentModeWrapper>
