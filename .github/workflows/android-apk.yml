@@ -49,6 +49,20 @@ jobs:
       - name: Expo prebuild (generate android/)
         run: npx expo prebuild -p android --no-install --clean
 
+      - name: Pin androidx.core to AGP-compatible version
+        run: |
+          cat >> android/app/build.gradle <<'EOF'
+
+          // CI patch: AGP 8.6 cannot consume androidx.core 1.17 (needs AGP 8.9+).
+          // Force the latest version compatible with AGP 8.6.
+          configurations.all {
+              resolutionStrategy {
+                  force 'androidx.core:core:1.13.1'
+                  force 'androidx.core:core-ktx:1.13.1'
+              }
+          }
+          EOF
+
       - name: Generate alpha signing keystore
         run: |
           keytool -genkeypair -v \
