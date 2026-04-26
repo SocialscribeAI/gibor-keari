@@ -7,10 +7,6 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "scheme": "giborkeari",
-    "splash": {
-      "resizeMode": "contain",
-      "backgroundColor": "#F7F1E5"
-    },
     "assetBundlePatterns": ["**/*"],
     "ios": {
       "supportsTablet": true,

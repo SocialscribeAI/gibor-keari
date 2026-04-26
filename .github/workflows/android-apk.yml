@@ -38,6 +38,14 @@ jobs:
       - name: Expo prebuild (generate android/)
         run: npx expo prebuild -p android --no-install --clean
 
+      - name: Patch Kotlin version (Compose 1.5.15 needs 1.9.25)
+        run: |
+          if [ -f android/build.gradle ]; then
+            sed -i 's/kotlinVersion = "1.9.24"/kotlinVersion = "1.9.25"/g' android/build.gradle
+            sed -i "s/kotlinVersion = '1.9.24'/kotlinVersion = '1.9.25'/g" android/build.gradle
+            grep -n kotlinVersion android/build.gradle || true
+          fi
+
       - name: Make gradlew executable
         run: chmod +x android/gradlew
 
