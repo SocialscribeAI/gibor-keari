@@ -32,8 +32,33 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
+      # Cache node_modules across runs (keyed on package-lock.json)
+      - name: Cache node_modules
+        id: cache-node
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-node-modules-${{ hashFiles('package-lock.json', 'package.json') }}
+
       - name: Install dependencies
+        if: steps.cache-node.outputs.cache-hit != 'true'
         run: npm install --legacy-peer-deps --no-audit --no-fund
+
+      # Cache Gradle deps + wrapper + per-project build cache.
+      # This is the single biggest CI speedup for Android.
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            android/.gradle
+            android/build
+            android/app/build/intermediates
+            android/app/build/generated
+          key: ${{ runner.os }}-gradle-${{ hashFiles('package-lock.json', 'app.json', '**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
 
       - name: Stamp build info
         run: |
@@ -48,6 +73,21 @@ jobs:
 
       - name: Expo prebuild (generate android/)
         run: npx expo prebuild -p android --no-install --clean
+
+      # Build only arm64 (every modern Android phone). Cuts build time roughly in half
+      # and shrinks the APK. Add armeabi-v7a back if you need to support older 32-bit devices.
+      - name: Speed up Gradle (parallel, daemon, build cache, single ABI)
+        run: |
+          cat >> android/gradle.properties <<'EOF'
+
+          # CI speed tweaks
+          org.gradle.parallel=true
+          org.gradle.configureondemand=true
+          org.gradle.caching=true
+          org.gradle.daemon=true
+          org.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g -XX:+HeapDumpOnOutOfMemoryError
+          reactNativeArchitectures=arm64-v8a
+          EOF
 
       - name: Pin androidx.core to AGP-compatible version
         run: |
@@ -107,7 +147,7 @@ jobs:
 
       - name: Build release APK
         working-directory: android
-        run: ./gradlew assembleRelease --no-daemon
+        run: ./gradlew assembleRelease --build-cache --parallel
 
       - name: Rename APK
         run: |

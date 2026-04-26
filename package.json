@@ -10,6 +10,8 @@
     "ios": "expo start --ios",
     "build:apk": "eas build --platform android --profile preview",
     "build:aab": "eas build --platform android --profile production",
+    "push": "eas update --branch preview --auto",
+    "push:prod": "eas update --branch production --auto",
     "lint": "tsc --noEmit"
   },
   "dependencies": {
@@ -27,6 +29,7 @@
     "expo-notifications": "~0.29.13",
     "expo-splash-screen": "~0.29.13",
     "expo-status-bar": "~2.0.0",
+    "expo-updates": "~0.26.10",
     "lucide-react-native": "^0.469.0",
     "moti": "^0.29.0",
     "nativewind": "^4.1.23",

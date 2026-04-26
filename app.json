@@ -8,6 +8,17 @@
     "newArchEnabled": true,
     "scheme": "giborkeari",
     "assetBundlePatterns": ["**/*"],
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/8b5f63d0-ed50-482d-8e75-f93539823f37",
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0,
+      "requestHeaders": {
+        "expo-channel-name": "preview"
+      }
+    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.guard.app"
