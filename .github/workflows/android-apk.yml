@@ -95,8 +95,7 @@ jobs:
         working-directory: android
         run: |
           ./gradlew assembleRelease --no-daemon \
-            -x :react-native-worklets:assertMinimalReactNativeVersionTask \
-            -x :react-native-worklets:assertLatestReactNativeWithNewArchitectureTask
+            -x :react-native-worklets:assertMinimalReactNativeVersionTask
 
       - name: Rename APK
         run: |
