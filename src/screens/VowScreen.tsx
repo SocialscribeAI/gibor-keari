@@ -5,6 +5,31 @@ import { Gift, ArrowRight } from 'lucide-react-native';
 import { Screen } from '../components/Screen';
 import { useStore } from '../store/useStore';
 
+// NOTE: This Row component is defined OUTSIDE the screen component on purpose.
+// If it lives inside, React re-creates it on every render and the TextInput
+// loses focus after each keystroke (classic RN gotcha).
+interface RowProps {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder: string;
+}
+const Row: React.FC<RowProps> = ({ label, value, onChange, placeholder }) => (
+  <View className="mb-5">
+    <Text className="text-guard-accent text-xs font-black uppercase mb-2 tracking-widest">{label}</Text>
+    <TextInput
+      value={value}
+      onChangeText={onChange}
+      placeholder={placeholder}
+      placeholderTextColor="rgba(255,255,255,0.3)"
+      className="bg-guard-surface border border-guard-primary/30 rounded-2xl px-5 py-4 text-white text-base"
+      multiline
+      blurOnSubmit={false}
+      returnKeyType="default"
+    />
+  </View>
+);
+
 export const VowScreen: React.FC = () => {
   const { vows, setVow, startStreak } = useStore();
   const [day7, setDay7] = useState(vows[7] || '');
@@ -21,34 +46,22 @@ export const VowScreen: React.FC = () => {
     startStreak();
   };
 
-  const Row = ({ label, value, onChange, placeholder }: any) => (
-    <View className="mb-5">
-      <Text className="text-guard-accent text-xs font-black uppercase mb-2 tracking-widest">{label}</Text>
-      <TextInput
-        value={value}
-        onChangeText={onChange}
-        placeholder={placeholder}
-        placeholderTextColor="rgba(255,255,255,0.3)"
-        className="bg-guard-surface border border-guard-primary/30 rounded-2xl px-5 py-4 text-white text-base"
-        multiline
-      />
-    </View>
-  );
-
   return (
     <Screen>
       <MotiView from={{ opacity: 0 }} animate={{ opacity: 1 }} className="mb-8">
         <View className="w-16 h-16 rounded-2xl bg-guard-accent/10 border border-guard-accent/30 items-center justify-center mb-6">
           <Gift size={32} color="#E8A020" />
         </View>
-        <Text className="text-3xl font-black text-white mb-3">Your Vow</Text>
+        <Text className="text-3xl font-black text-white mb-3">Your Promise</Text>
+        <Text className="text-guard-accent text-xs font-black uppercase tracking-widest mb-3">בלי נדר · bli neder</Text>
         <Text className="text-white/60 leading-6">
-          Before you begin, commit to what you'll earn. Rewards you promise yourself — in writing — at the 7,
-          30, and 90-day marks.
+          Before you begin, write what you'll give yourself when you reach each milestone.
+          Not a vow — bli neder. Just a promise to your future self, in writing, that
+          rewards your effort at the 7, 30, and 90-day marks.
         </Text>
       </MotiView>
 
-      <Row label="Day 7 Reward" value={day7} onChange={setDay7} placeholder="e.g. Buy that book I wanted" />
+      <Row label="Day 7 Reward" value={day7} onChange={setDay7} placeholder="e.g. The book I've been wanting" />
       <Row label="Day 30 Reward" value={day30} onChange={setDay30} placeholder="e.g. A nice dinner out" />
       <Row label="Day 90 Reward" value={day90} onChange={setDay90} placeholder="e.g. Weekend trip" />
 

@@ -22,7 +22,7 @@ const ACKNOWLEDGMENTS: Record<NonNullable<Tone>, string> = {
 const TRIGGERS = ['Late Night', 'Boredom', 'Stress', 'Phone in bed', 'Social media', 'Loneliness', 'Idle time', 'Other'];
 
 export const LogFallModal: React.FC<LogFallModalProps> = ({ isOpen, onClose, onActivatePunishment }) => {
-  const { personalityProfile, mantras, logFall } = useStore();
+  const { personalityProfile, mantras, logFallDetailed, appendCoachMessage } = useStore();
   const theme = useTheme();
   const [step, setStep] = useState(1);
   const [selectedTriggers, setSelectedTriggers] = useState<string[]>([]);
@@ -31,8 +31,21 @@ export const LogFallModal: React.FC<LogFallModalProps> = ({ isOpen, onClose, onA
   const tone = (personalityProfile.tone || 'gentle') as NonNullable<Tone>;
   const acknowledgment = ACKNOWLEDGMENTS[tone];
 
+  const noteValid = note.trim().length >= 20;
+
   const handleReset = () => {
-    logFall();
+    // Persist the detailed event so the coach + insights have full context.
+    logFallDetailed({
+      emotionalTriggers: [],
+      situationalTriggers: [],
+      digitalTriggers: selectedTriggers,
+      notes: note.trim(),
+    } as any);
+    // Feed the coach memory so it remembers this stumble in future chats.
+    appendCoachMessage({
+      role: 'system',
+      text: `[FALL LOGGED] Triggers: ${selectedTriggers.join(', ') || 'none noted'}.\nReflection: ${note.trim()}`,
+    });
     onClose();
     setStep(1);
     setSelectedTriggers([]);
@@ -94,20 +107,27 @@ export const LogFallModal: React.FC<LogFallModalProps> = ({ isOpen, onClose, onA
                   );
                 })}
               </View>
+              <Text className="text-xs text-white/50 leading-5 -mt-2">
+                Be honest — this is just for you. The more you write, the more your coach can help.
+              </Text>
               <TextInput
                 value={note}
                 onChangeText={setNote}
-                placeholder="Optional note..."
+                placeholder="What happened? What were you feeling? What led up to it? Where were you, who were you with, what were you avoiding?"
                 placeholderTextColor={theme.textDim}
                 multiline
-                className="bg-guard-surface border border-guard-primary/20 rounded-2xl p-4 text-sm text-white h-24"
+                className="bg-guard-surface border border-guard-primary/20 rounded-2xl p-4 text-sm text-white h-48"
                 textAlignVertical="top"
               />
+              <Text className="text-[10px] text-white/40 text-right">
+                {note.trim().length} chars{noteValid ? '' : ' — minimum 20'}
+              </Text>
               <Pressable
-                onPress={() => setStep(3)}
-                className="w-full py-4 rounded-2xl bg-guard-accent items-center"
+                onPress={() => noteValid && setStep(3)}
+                disabled={!noteValid}
+                className={`w-full py-4 rounded-2xl items-center ${noteValid ? 'bg-guard-accent' : 'bg-guard-surface border border-guard-primary/20'}`}
               >
-                <Text className="text-guard-on-accent font-black uppercase text-xs" style={{ letterSpacing: 2 }}>Name it & Rise</Text>
+                <Text className={`font-black uppercase text-xs ${noteValid ? 'text-guard-on-accent' : 'text-white/40'}`} style={{ letterSpacing: 2 }}>Name it & Rise</Text>
               </Pressable>
             </View>
           )}
@@ -129,9 +149,8 @@ export const LogFallModal: React.FC<LogFallModalProps> = ({ isOpen, onClose, onA
                 </Pressable>
                 <Pressable
                   onPress={() => {
-                    logFall();
+                    handleReset();
                     onActivatePunishment();
-                    onClose();
                   }}
                   className="w-full py-4 rounded-2xl border-2 border-red-500/30 bg-red-500/5 items-center"
                 >

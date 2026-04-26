@@ -36,7 +36,7 @@ export const BottomTab: React.FC<BottomTabProps> = ({ activeTab, onTabChange }) 
       className="absolute bottom-0 left-0 right-0 bg-guard-bg border-t border-guard-primary/30 pb-6"
       style={{ elevation: 20 }}
     >
-      <View className="flex-row justify-around items-center h-20 px-2">
+      <View className="flex-row justify-around items-center h-20 px-1">
         {tabs.map((tab) => {
           const isActive = activeTab === tab.id;
           const Icon = tab.icon;
@@ -46,7 +46,7 @@ export const BottomTab: React.FC<BottomTabProps> = ({ activeTab, onTabChange }) 
             <Pressable
               key={tab.id}
               onPress={() => handleTabPress(tab.id)}
-              className="items-center justify-center flex-1"
+              className="items-center justify-center flex-1 px-0.5"
             >
               <View className="relative">
                 <Icon size={20} color={isActive ? theme.accent : theme.textDim} />
@@ -59,8 +59,12 @@ export const BottomTab: React.FC<BottomTabProps> = ({ activeTab, onTabChange }) 
                 )}
               </View>
               <Text
-                className="text-[8px] font-black uppercase mt-1.5"
-                style={{ color: isActive ? theme.accent : theme.textDim, letterSpacing: 1.5 }}
+                numberOfLines={1}
+                allowFontScaling={false}
+                adjustsFontSizeToFit
+                minimumFontScale={0.7}
+                className="text-[9px] font-black uppercase mt-1.5"
+                style={{ color: isActive ? theme.accent : theme.textDim, letterSpacing: 0.4 }}
               >
                 {tab.label}
               </Text>

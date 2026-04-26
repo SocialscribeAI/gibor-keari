@@ -40,6 +40,10 @@ export const Coach: React.FC<Props> = ({ onNavigateToAiConfig }) => {
     aiApiKey,
     aiModel,
     aiCustomEndpoint,
+    coachMessages,
+    coachSummary,
+    appendCoachMessage,
+    clearCoachMessages,
   } = useStore();
 
   const aiCfg = useMemo(
@@ -57,9 +61,22 @@ export const Coach: React.FC<Props> = ({ onNavigateToAiConfig }) => {
     ? `Coach ready · ${providerLabel(aiProvider)}.\n\nI know your tone, your triggers, and your streak. What's on your mind?`
     : "Coach AI isn't set up yet. Open Profile → AI coach and pick Groq (free, open-source). Until then, your messages are saved locally.";
 
-  const [messages, setMessages] = useState<Message[]>([
-    { id: 'seed', role: 'coach', text: seedText },
-  ]);
+  // Map persisted store messages -> UI messages. Hide system entries from the
+  // visible chat (they're context for the model only).
+  const visibleMessages: Message[] = useMemo(() => {
+    const mapped = coachMessages
+      .filter((m) => m.role !== 'system')
+      .map((m) => ({
+        id: m.id,
+        role: (m.role === 'assistant' ? 'coach' : 'user') as 'user' | 'coach',
+        text: m.text,
+      }));
+    if (mapped.length === 0) {
+      return [{ id: 'seed', role: 'coach', text: seedText }];
+    }
+    return mapped;
+  }, [coachMessages, seedText]);
+
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
@@ -72,29 +89,48 @@ export const Coach: React.FC<Props> = ({ onNavigateToAiConfig }) => {
 
   useEffect(() => {
     scrollRef.current?.scrollToEnd({ animated: true });
-  }, [messages]);
+  }, [visibleMessages]);
 
   const send = async () => {
     const trimmed = input.trim();
     if (!trimmed || loading) return;
-    const userMsg: Message = { id: `u-${Date.now()}`, role: 'user', text: trimmed };
-    setMessages((m) => [...m, userMsg]);
+    appendCoachMessage({ role: 'user', text: trimmed });
     setInput('');
 
     if (!aiOn) {
-      setMessages((m) => [
-        ...m,
-        {
-          id: `c-${Date.now()}`,
-          role: 'coach',
-          text: 'Saved locally. Turn on AI in Profile → AI coach to get a real reply.',
-        },
-      ]);
+      appendCoachMessage({
+        role: 'assistant',
+        text: 'Saved locally. Turn on AI in Profile → AI coach to get a real reply.',
+      });
       return;
     }
 
     setLoading(true);
-    const history = messages.map((m) => ({ role: m.role, text: m.text }));
+    // Build history from persisted store. Include the rolling summary as a
+    // pseudo-system turn so the model has long-term memory without sending
+    // the whole transcript every time.
+    const history: { role: 'user' | 'coach'; text: string }[] = [];
+    if (coachSummary) {
+      history.push({ role: 'coach', text: `[Memory of past sessions]: ${coachSummary}` });
+    }
+    // Last 30 turns (excluding the message we just appended).
+    const recent = coachMessages
+      .filter((m) => m.role !== 'system')
+      .slice(-30)
+      .map((m) => ({
+        role: (m.role === 'assistant' ? 'coach' : 'user') as 'user' | 'coach',
+        text: m.text,
+      }));
+    history.push(...recent);
+    // Include any [FALL LOGGED] system notes as context summary.
+    const sysNotes = coachMessages.filter((m) => m.role === 'system').slice(-5);
+    if (sysNotes.length) {
+      history.unshift({
+        role: 'coach',
+        text: `[Recent events the user logged]:\n${sysNotes.map((s) => s.text).join('\n')}`,
+      });
+    }
+
     const toolsUsed: string[] = [];
     const res = await generateCoachReply(
       aiCfg,
@@ -117,23 +153,16 @@ export const Coach: React.FC<Props> = ({ onNavigateToAiConfig }) => {
     setLoading(false);
 
     if (!res.ok) {
-      setMessages((m) => [
-        ...m,
-        {
-          id: `c-err-${Date.now()}`,
-          role: 'coach',
-          text: `[Coach is offline right now]\n${res.error}`,
-        },
-      ]);
+      appendCoachMessage({
+        role: 'assistant',
+        text: `[Coach is offline right now]\n${res.error}`,
+      });
       return;
     }
     const text = toolsUsed.length
       ? `${res.data}\n\n_${toolsUsed.join(' · ')}_`
       : res.data;
-    setMessages((m) => [
-      ...m,
-      { id: `c-${Date.now()}`, role: 'coach', text },
-    ]);
+    appendCoachMessage({ role: 'assistant', text });
   };
 
   if (locked) {
@@ -202,7 +231,7 @@ export const Coach: React.FC<Props> = ({ onNavigateToAiConfig }) => {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: 20 }}
         >
-          {messages.map((m) => (
+          {visibleMessages.map((m) => (
             <MotiView
               key={m.id}
               from={{ opacity: 0, translateY: 6 }}

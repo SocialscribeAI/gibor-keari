@@ -38,13 +38,13 @@ const RECOVERY: Option<NonNullable<RecoveryStage>>[] = [
 ];
 
 const RELIGIOUS: Option<NonNullable<ReligiousLevel>>[] = [
-  { id: 'secular', label: 'Secular' },
-  { id: 'traditional', label: 'Traditional' },
+  { id: 'secular', label: 'Secular', desc: 'Not observant. Cultural / agnostic.' },
+  { id: 'traditional', label: 'Traditional', desc: 'Some mitzvos, not fully shomer.' },
+  { id: 'baal-teshuva', label: 'Baal teshuva', desc: 'On the journey back \u2014 newer to observance.' },
   { id: 'modern-orthodox', label: 'Modern Orthodox' },
-  { id: 'chareidi', label: 'Chareidi' },
-  { id: 'christian', label: 'Christian' },
-  { id: 'muslim', label: 'Muslim' },
-  { id: 'other', label: 'Other / spiritual' },
+  { id: 'chassidish', label: 'Chassidish' },
+  { id: 'chareidi', label: 'Chareidi / Yeshivish' },
+  { id: 'other', label: 'Other / spiritual', desc: 'Jewish but doesn\u2019t fit above.' },
 ];
 
 const TONES: Option<NonNullable<Tone>>[] = [
@@ -267,8 +267,8 @@ export const Onboarding: React.FC = () => {
       case 'religious':
         return (
           <SingleSelectStep
-            title="Your frame"
-            subtitle="Helps us show content that fits — and hide what doesn't."
+            title="Where do you stand?"
+            subtitle="This app is built for Klal Yisrael \u2014 from secular to chareidi. We tailor the language, sources, and tactics to fit you."
             options={RELIGIOUS}
             value={religious}
             onSelect={setReligious}
@@ -513,32 +513,16 @@ const PrivacyPromiseStep: React.FC = () => (
     <Text className="text-4xl font-black text-white mb-3" style={{ fontFamily: 'Outfit' }}>
       Our promise to you
     </Text>
-    <Text className="text-white/70 text-base leading-6 mb-6">
-      Before you begin, read this. This is the deal:
+    <Text className="text-white/70 text-base leading-7 mb-6">
+      We don't save any of your info. Everything stays on your phone. There's no
+      account, no email, no password — nothing to hack, nothing to leak.
     </Text>
-    {[
-      'Everything is stored on your phone only.',
-      'No account. No email. No login.',
-      'No telemetry. No analytics. No ad networks.',
-      "If you use the AI coach, it uses YOUR key and talks only to the provider you pick.",
-      'You can export everything as JSON or delete it all in one tap.',
-    ].map((line, i) => (
-      <View key={i} className="flex-row items-start mb-3">
-        <View
-          className="w-6 h-6 rounded-full items-center justify-center mr-3 mt-0.5"
-          style={{ backgroundColor: 'rgba(30,138,74,0.2)' }}
-        >
-          <Check size={12} color="#1E8A4A" />
-        </View>
-        <Text className="flex-1 text-white/80 leading-6">{line}</Text>
-      </View>
-    ))}
     <View
-      className="rounded-2xl p-4 mt-4"
+      className="rounded-2xl p-4 mb-2"
       style={{ backgroundColor: 'rgba(232,160,32,0.08)', borderWidth: 1, borderColor: 'rgba(232,160,32,0.25)' }}
     >
       <Text className="text-white/70 text-sm leading-6 italic">
-        Tap below and you're in. The door is always unlocked from the inside — your data, your control.
+        Tap below and you're in. Your data, your phone, your control.
       </Text>
     </View>
   </View>

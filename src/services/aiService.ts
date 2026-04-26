@@ -46,14 +46,18 @@ const DEFAULT_MODELS: Record<AiProvider, string> = {
 // ---------------------------------------------------------------------------
 // Built-in fallback — private app, user opted in to bundling a key.
 // If the user hasn't configured anything, we auto-use Gemini/Gemma.
-// Remove this block (and BUILTIN_AI) to return to pure BYOK.
+// Key lives in `_builtinKey.ts` (obfuscated). Rotate it there.
 // ---------------------------------------------------------------------------
+import { getBuiltinKey } from './_builtinKey';
+
 const BUILTIN_AI: AiConfig = {
   provider: 'gemini',
-  apiKey: 'AIzaSyCg-vbH9pkZoYq4BwHnRjB7mpzSCjJN828',
+  get apiKey() {
+    return getBuiltinKey();
+  },
   model: 'gemma-3-27b-it',
   customEndpoint: null,
-};
+} as AiConfig;
 
 function resolveConfig(cfg: AiConfig): AiConfig {
   // If user picked 'none' or left the key blank on a key-requiring provider, fall back to builtin.

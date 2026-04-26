@@ -119,7 +119,10 @@ export const Learn: React.FC = () => {
   const isJewish =
     personalityProfile.religiousLevel === 'traditional' ||
     personalityProfile.religiousLevel === 'modern-orthodox' ||
-    personalityProfile.religiousLevel === 'chareidi';
+    personalityProfile.religiousLevel === 'chareidi' ||
+    personalityProfile.religiousLevel === 'chassidish' ||
+    personalityProfile.religiousLevel === 'baal-teshuva' ||
+    personalityProfile.religiousLevel === 'other';
 
   const availableTopics = useMemo(
     () => ALL_TOPICS.filter((t) => !t.jewishOnly || isJewish),

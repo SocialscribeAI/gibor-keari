@@ -35,9 +35,13 @@ async function openWhatsApp(message: string): Promise<boolean> {
 
 export function sendFeedback(): Promise<boolean> {
   const message = [
-    "Hi! I'm using the Gibor KeAri alpha and I'd like to share some feedback / an idea:",
+    "Hi! I'm using the Gibor KeAri *alpha* and I want to help make it perfect.",
     '',
-    '(write your idea here)',
+    'My idea / feedback:',
+    '(write here)',
+    '',
+    'What would make this app perfect for me:',
+    '(write here)',
     '',
     '— sent from app —',
     buildDiagnostics(),

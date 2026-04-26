@@ -15,6 +15,7 @@ import {
 import { Screen } from '../components/Screen';
 import { useTheme } from '../constants/theme';
 import { useStore } from '../store/useStore';
+import { isBuiltinKey } from '../services/_builtinKey';
 
 // =============================================================================
 // AI Coach Configuration (§2.14, Phase F)
@@ -115,7 +116,10 @@ export const AiCoachConfigScreen: React.FC<Props> = ({ onBack }) => {
   const setAiConfig = useStore((s) => s.setAiConfig);
 
   const [provider, setProvider] = useState<Provider>(aiProvider);
-  const [apiKey, setApiKey] = useState(aiApiKey ?? '');
+  // Never show the bundled key in the UI — if the user hasn't supplied their
+  // own, the input stays blank and the app silently uses the built-in key.
+  const userOwnsKey = !!aiApiKey && !isBuiltinKey(aiApiKey);
+  const [apiKey, setApiKey] = useState(userOwnsKey ? aiApiKey! : '');
   const [model, setModel] = useState(aiModel ?? '');
   const [endpoint, setEndpoint] = useState(
     aiCustomEndpoint ?? (aiProvider === 'local-ollama' ? 'http://localhost:11434' : ''),
@@ -125,7 +129,7 @@ export const AiCoachConfigScreen: React.FC<Props> = ({ onBack }) => {
   const current = PROVIDERS.find((p) => p.id === provider)!;
   const isDirty =
     provider !== aiProvider ||
-    (apiKey || '') !== (aiApiKey || '') ||
+    (apiKey || '') !== (userOwnsKey ? aiApiKey || '' : '') ||
     (model || '') !== (aiModel || '') ||
     (endpoint || '') !== (aiCustomEndpoint || '');
 
@@ -339,7 +343,7 @@ export const AiCoachConfigScreen: React.FC<Props> = ({ onBack }) => {
               <TextInput
                 value={apiKey}
                 onChangeText={setApiKey}
-                placeholder="sk-..."
+                placeholder={userOwnsKey ? 'sk-...' : 'Using built-in key — paste your own to override'}
                 placeholderTextColor={theme.muted}
                 secureTextEntry={!keyVisible}
                 autoCapitalize="none"

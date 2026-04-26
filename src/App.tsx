@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { AnimatePresence } from 'moti';
 import { Navigator } from './navigation/Navigator';
 import { PunishmentModeWrapper } from './components/PunishmentModeWrapper';
@@ -62,8 +63,10 @@ export default function App() {
           <SplashScreen key="splash" onComplete={() => setIsSplashComplete(true)} />
         ) : (
           <PunishmentModeWrapper key="main">
-            <AlphaBanner />
-            <UpdateBanner />
+            <SafeAreaView edges={['top']} className="bg-guard-bg">
+              <AlphaBanner />
+              <UpdateBanner />
+            </SafeAreaView>
             <Navigator />
             <CheckInModal />
           </PunishmentModeWrapper>

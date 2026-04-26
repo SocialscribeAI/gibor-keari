@@ -10,13 +10,14 @@ import { differenceInDays, format } from 'date-fns';
 
 export type Tone = 'gentle' | 'harsh' | 'spiritual' | 'clinical' | 'custom' | null;
 
+// This app is for Jews — secular through chareidi. Non-Jewish frames are intentionally omitted.
 export type ReligiousLevel =
   | 'secular'
   | 'traditional'
   | 'modern-orthodox'
   | 'chareidi'
-  | 'christian'
-  | 'muslim'
+  | 'chassidish'
+  | 'baal-teshuva'
   | 'other'
   | 'custom'
   | null;
@@ -164,6 +165,13 @@ export type PrecursorFlag =
   | 'halt-angry'
   | 'halt-lonely'
   | 'halt-tired';
+
+export interface CoachMessage {
+  id: string;
+  role: 'user' | 'assistant' | 'system';
+  text: string;
+  timestamp: string; // ISO
+}
 
 export interface FallEvent {
   id: string;
@@ -447,6 +455,10 @@ interface GuardState {
   // Appearance
   themePreference: 'light' | 'dark' | 'system';
 
+  // Coach memory (persistent across sessions)
+  coachMessages: CoachMessage[];
+  coachSummary: string | null; // rolling AI-generated summary of older turns
+
   // =========================================================================
   // ACTIONS
   // =========================================================================
@@ -487,6 +499,11 @@ interface GuardState {
   toggleTacticToToolkit: (tacticId: string) => void;
   syncStreak: () => void;
   completeOnboarding: () => void;
+
+  // Coach memory
+  appendCoachMessage: (msg: Omit<CoachMessage, 'id' | 'timestamp'>) => void;
+  clearCoachMessages: () => void;
+  setCoachSummary: (summary: string | null) => void;
   regenerateIdentity: () => void;
   resetData: () => void;
 
@@ -596,7 +613,7 @@ export const useStore = create<GuardState>()(
       punishmentModeUntil: null,
 
       aiProvider: 'gemini',
-      aiApiKey: 'AIzaSyCg-vbH9pkZoYq4BwHnRjB7mpzSCjJN828',
+      aiApiKey: null,
       aiModel: 'gemma-3-27b-it',
       aiCustomEndpoint: null,
 
@@ -606,7 +623,10 @@ export const useStore = create<GuardState>()(
 
       privacyPromiseAcknowledged: false,
 
-      themePreference: 'light',
+      themePreference: 'dark',
+
+      coachMessages: [],
+      coachSummary: null,
 
       // ---------------------- Actions ----------------------
 
@@ -841,13 +861,43 @@ export const useStore = create<GuardState>()(
       },
 
       syncStreak: () => {
-        const { streakStart } = get();
+        const { streakStart, calendarLog } = get();
         if (!streakStart) return;
-        const days = differenceInDays(new Date(), new Date(streakStart));
-        set({ currentStreak: Math.max(0, days) });
+        const start = new Date(streakStart);
+        const now = new Date();
+        const days = differenceInDays(now, start);
+        // Auto-backfill: every day from streakStart up to (but not including)
+        // today is marked 'win' unless the user already logged something for
+        // that day (fall, close-call, medium, or manually edited).
+        // Today stays untouched — user has the whole day to log a fall.
+        const updatedLog: Record<string, LogEntry> = { ...calendarLog };
+        for (let i = 0; i < days; i++) {
+          const d = new Date(start);
+          d.setDate(start.getDate() + i);
+          const key = format(d, 'yyyy-MM-dd');
+          if (!updatedLog[key]) updatedLog[key] = 'win';
+        }
+        set({ currentStreak: Math.max(0, days), calendarLog: updatedLog });
       },
 
       completeOnboarding: () => set({ hasCompletedOnboarding: true }),
+
+      appendCoachMessage: (msg) => {
+        const { coachMessages } = get();
+        const full: CoachMessage = {
+          ...msg,
+          id: uuidv4(),
+          timestamp: new Date().toISOString(),
+        };
+        // Cap at last 200 messages to avoid unbounded growth.
+        const next = [...coachMessages, full];
+        const trimmed = next.length > 200 ? next.slice(next.length - 200) : next;
+        set({ coachMessages: trimmed });
+      },
+
+      clearCoachMessages: () => set({ coachMessages: [], coachSummary: null }),
+
+      setCoachSummary: (summary) => set({ coachSummary: summary }),
 
       regenerateIdentity: () => {
         set({
@@ -1094,20 +1144,22 @@ export const useStore = create<GuardState>()(
           punishmentModeActive: false,
           punishmentModeUntil: null,
           aiProvider: 'gemini',
-          aiApiKey: 'AIzaSyCg-vbH9pkZoYq4BwHnRjB7mpzSCjJN828',
+          aiApiKey: null,
           aiModel: 'gemma-3-27b-it',
           aiCustomEndpoint: null,
           customTactics: [],
           learnRecommendations: [],
           aiDangerAnalysis: null,
           privacyPromiseAcknowledged: false,
+          coachMessages: [],
+          coachSummary: null,
         });
       },
     }),
     {
       name: 'guard-user-profile',
       storage: createJSONStorage(() => AsyncStorage),
-      version: 5,
+      version: 7,
       // Migrate from v1 (4-axis profile) to v2 (12-axis profile + new fields).
       migrate: (persistedState: unknown, version: number) => {
         if (!persistedState || typeof persistedState !== 'object') return persistedState;
@@ -1147,6 +1199,26 @@ export const useStore = create<GuardState>()(
           s.aiCustomEndpoint = null;
           s.learnRecommendations = [];
           s.aiDangerAnalysis = null;
+        }
+        if (version < 6) {
+          // Default to dark theme. Strip non-Jewish religious frames left over
+          // from earlier versions of the app.
+          s.themePreference = 'dark';
+          const p = s.personalityProfile as Partial<PersonalityProfile> | undefined;
+          if (p && (p.religiousLevel === ('christian' as unknown as ReligiousLevel) ||
+                    p.religiousLevel === ('muslim' as unknown as ReligiousLevel))) {
+            p.religiousLevel = 'other';
+          }
+        }
+        if (version < 7) {
+          // Wipe the previously-leaked bundled key from any persisted state so
+          // we always pick up the current bundled key from _builtinKey.ts.
+          // Users with a custom key (different value) keep theirs.
+          const LEAKED = 'AIzaSyCg-vbH9pkZoYq4BwHnRjB7mpzSCjJN828';
+          if (s.aiApiKey === LEAKED || !s.aiApiKey) s.aiApiKey = null;
+          // Initialise coach memory.
+          s.coachMessages = s.coachMessages ?? [];
+          s.coachSummary = s.coachSummary ?? null;
         }
         return s;
       },

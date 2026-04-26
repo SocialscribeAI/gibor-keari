@@ -18,8 +18,8 @@ export type ContentReligion =
   | 'traditional'
   | 'modern-orthodox'
   | 'chareidi'
-  | 'christian'
-  | 'muslim'
+  | 'chassidish'
+  | 'baal-teshuva'
   | 'universal';
 
 export type ContentTime = 'panic' | 'quick' | 'medium' | 'deep'; // <30s / 2m / 5-15m / 30m+

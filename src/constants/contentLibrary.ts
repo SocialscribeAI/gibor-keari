@@ -85,7 +85,7 @@ export const MANTRAS: TaggedContent[] = [
     title: 'Psalm 23 — I walk through',
     body: "Gam ki eilech b'gei tzalmaves — lo ira ra, ki Atah imadi. Even through the valley of shadow, I'm not alone.",
     source: 'Tehillim 23:4',
-    tags: { tone: ['spiritual', 'gentle'], religion: ['modern-orthodox', 'chareidi', 'traditional', 'christian'], triggers: ['loneliness', 'late-night'], time: 'panic' },
+    tags: { tone: ['spiritual', 'gentle'], religion: ['modern-orthodox', 'chareidi', 'traditional', 'chassidish', 'baal-teshuva'], triggers: ['loneliness', 'late-night'], time: 'panic' },
   },
   {
     id: 'm-twerski-1',
