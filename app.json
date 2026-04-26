@@ -1,0 +1,39 @@
+{
+  "expo": {
+    "name": "Gibor KeAri",
+    "slug": "gibor-keari",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "scheme": "giborkeari",
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#F7F1E5"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.guard.app"
+    },
+    "android": {
+      "package": "com.guard.app",
+      "permissions": [
+        "NOTIFICATIONS",
+        "VIBRATE",
+        "RECEIVE_BOOT_COMPLETED"
+      ]
+    },
+    "web": {
+      "bundler": "metro"
+    },
+    "plugins": [
+      ["expo-notifications", { "color": "#C89A3C" }]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "8b5f63d0-ed50-482d-8e75-f93539823f37"
+      }
+    }
+  }
+}

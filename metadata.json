@@ -1,0 +1,5 @@
+{
+  "name": "Guard",
+  "description": "A recovery and streak-tracking app for personal growth and overcoming addiction.",
+  "requestFramePermissions": []
+}

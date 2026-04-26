@@ -1,0 +1,42 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Gibor KeAri — theme variables. "Stand strong as a lion." (Pirkei Avot 5:20)
+ *
+ * Variables are "R G B" (space-separated) so Tailwind's <alpha-value>
+ * placeholder works: rgb(var(--color-bg) / 0.5).
+ *
+ * Light mode — parchment + ink navy + ember gold  (the mesorah palette)
+ * Dark  mode — deep indigo + warm ivory + candle gold  (the monastery palette)
+ */
+
+@layer base {
+  :root,
+  .light {
+    --color-bg: 247 241 229;        /* #F7F1E5 parchment */
+    --color-surface: 255 251 240;   /* #FFFBF0 vellum */
+    --color-surface-2: 240 231 209; /* #F0E7D1 aged parchment */
+    --color-primary: 27 42 78;      /* #1B2A4E ink navy */
+    --color-accent: 200 154 60;     /* #C89A3C ember gold */
+    --color-success: 122 157 126;   /* #7A9D7E sage */
+    --color-danger: 178 61 43;      /* #B23D2B burnt sienna */
+    --color-text: 27 42 78;         /* #1B2A4E ink navy */
+    --color-muted: 113 120 145;     /* #717891 slate */
+    --color-on-accent: 27 42 78;    /* ink navy on gold */
+  }
+
+  .dark {
+    --color-bg: 15 17 32;           /* #0F1120 deep indigo */
+    --color-surface: 26 30 53;      /* #1A1E35 night surface */
+    --color-surface-2: 20 23 42;    /* #14172A */
+    --color-primary: 44 62 122;     /* #2C3E7A cobalt */
+    --color-accent: 232 160 32;     /* #E8A020 candle gold */
+    --color-success: 30 138 74;     /* #1E8A4A */
+    --color-danger: 192 57 43;      /* #C0392B */
+    --color-text: 240 230 210;      /* #F0E6D2 warm ivory */
+    --color-muted: 180 186 210;     /* #B4BAD2 */
+    --color-on-accent: 15 17 32;    /* deep indigo on gold */
+  }
+}
