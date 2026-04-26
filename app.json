@@ -25,7 +25,14 @@
     },
     "plugins": [
       ["expo-notifications", { "color": "#C89A3C" }],
-      ["expo-build-properties", { "android": { "kotlinVersion": "1.9.25" } }]
+      ["expo-build-properties", {
+        "android": {
+          "kotlinVersion": "1.9.25",
+          "compileSdkVersion": 36,
+          "targetSdkVersion": 36,
+          "buildToolsVersion": "36.0.0"
+        }
+      }]
     ],
     "extra": {
       "eas": {
