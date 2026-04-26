@@ -36,7 +36,7 @@ import { BottomTab, TabType } from '../components/BottomTab';
 type Overlay =
   | null
   | 'reminders' | 'mantras' | 'rituals' | 'data' | 'personalization'
-  | 'why' | 'watchlist' | 'insights' | 'aiconfig' | 'tactics'
+  | 'why' | 'watchlist' | 'insights' | 'aiconfig' | 'tactics' | 'learn'
   | 'community' | 'community-setup' | 'community-settings' | 'auth'
   | 'partner' | 'leaderboard' | 'forums' | 'forum-thread' | 'forum-compose';
 
@@ -68,6 +68,7 @@ export const Navigator: React.FC = () => {
       case 'insights': return <PatternInsightsScreen onBack={close} />;
       case 'aiconfig': return <AiCoachConfigScreen onBack={close} />;
       case 'tactics': return <TacticsSettingsScreen onBack={close} />;
+      case 'learn': return <Learn onBack={close} />;
 
       case 'community':
         return <CommunityHubScreen
@@ -144,6 +145,7 @@ export const Navigator: React.FC = () => {
             onNavigateToInsights={() => open('insights')}
             onNavigateToAiConfig={() => open('aiconfig')}
             onNavigateToTactics={() => open('tactics')}
+            onNavigateToLearn={() => open('learn')}
             onNavigateToCommunity={() => open('community')}
           />
         );

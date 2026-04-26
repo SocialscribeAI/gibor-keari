@@ -4,6 +4,7 @@
 // AsyncStorage so the user stays signed in across launches.
 // =============================================================================
 
+import { useMemo } from 'react';
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -89,11 +90,13 @@ export const useCommunityStore = create<CommunityState>()(
   ),
 );
 
-/** Helper so screens can `const cfg = useCommunityConfig()` concisely. */
+/** Helper so screens can `const cfg = useCommunityConfig()` concisely.
+ *  Returns a STABLE object reference per (url, key) pair so it can be safely
+ *  used as a dependency in useEffect/useCallback without triggering loops. */
 export function useCommunityConfig() {
   const url = useCommunityStore((s) => s.supabaseUrl) || BUILTIN_SUPABASE_URL;
   const key = useCommunityStore((s) => s.supabaseAnonKey) || BUILTIN_SUPABASE_ANON_KEY;
-  return { url, anonKey: key };
+  return useMemo(() => ({ url, anonKey: key }), [url, key]);
 }
 
 /** Kick Supabase's cached client at boot so getSession() has the right URL. */

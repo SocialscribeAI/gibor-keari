@@ -1,35 +1,45 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
-import { MessageCircle, Sparkles } from 'lucide-react-native';
+import { MessageCircle, X } from 'lucide-react-native';
 import { sendFeedback } from '../services/feedback';
 
 /**
- * Always-visible alpha banner. Tap anywhere on it to open WhatsApp with a
- * pre-filled feedback message. Sits directly under the status bar so the user
- * is reminded every session that this is alpha and ideas are welcome.
+ * Slim, dismissible alpha tag. Tapping the message-circle opens WhatsApp
+ * feedback; tapping X hides it for the session. Stays out of the way unless
+ * the user wants it.
  */
 export function AlphaBanner() {
+  const [dismissed, setDismissed] = useState(false);
+  if (dismissed) return null;
+
   return (
-    <Pressable
-      onPress={() => { void sendFeedback(); }}
-      className="bg-guard-accent/20 border-b border-guard-accent/50 px-3 py-2.5"
-      accessibilityRole="button"
-      accessibilityLabel="Alpha build — tap to message us on WhatsApp with ideas or feedback"
-    >
-      <View className="flex-row items-center">
-        <View className="w-7 h-7 rounded-full bg-guard-accent/30 items-center justify-center mr-2.5">
-          <Sparkles size={14} color="#E8A020" />
-        </View>
-        <View className="flex-1">
-          <Text className="text-guard-accent font-black text-[11px] tracking-widest uppercase">
-            Alpha · help us make it perfect
-          </Text>
-          <Text className="text-white/80 text-[12px] mt-0.5" numberOfLines={2}>
-            Tap anytime to send ideas or report a bug on WhatsApp.
-          </Text>
-        </View>
-        <MessageCircle size={18} color="#E8A020" />
+    <View className="bg-guard-surface/80 border-b border-guard-primary/20 px-3 py-1.5 flex-row items-center">
+      <View className="flex-1 flex-row items-center">
+        <Text className="text-guard-accent text-[10px] font-black uppercase tracking-widest">
+          Alpha
+        </Text>
+        <Text className="text-guard-text/50 text-[11px] ml-2" numberOfLines={1}>
+          tap the chat icon to send feedback
+        </Text>
       </View>
-    </Pressable>
+      <Pressable
+        onPress={() => { void sendFeedback(); }}
+        accessibilityRole="button"
+        accessibilityLabel="Send feedback"
+        hitSlop={8}
+        className="px-2"
+      >
+        <MessageCircle size={14} color="#E8A020" />
+      </Pressable>
+      <Pressable
+        onPress={() => setDismissed(true)}
+        accessibilityRole="button"
+        accessibilityLabel="Dismiss alpha banner"
+        hitSlop={8}
+        className="px-1"
+      >
+        <X size={14} color="rgba(240,230,210,0.5)" />
+      </Pressable>
+    </View>
   );
 }

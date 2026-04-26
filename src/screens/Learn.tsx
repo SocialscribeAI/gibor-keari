@@ -22,6 +22,7 @@ import {
   Scroll,
   Clock,
   Zap,
+  ChevronLeft,
 } from 'lucide-react-native';
 import { Screen } from '../components/Screen';
 import { useStore } from '../store/useStore';
@@ -92,7 +93,11 @@ const KIND_META: Record<RecKind, { label: string; icon: any }> = {
 
 const ALL_KINDS: RecKind[] = ['youtube', 'torah-shiur', 'podcast', 'article', 'book'];
 
-export const Learn: React.FC = () => {
+interface LearnProps {
+  onBack?: () => void;
+}
+
+export const Learn: React.FC<LearnProps> = ({ onBack }) => {
   const theme = useTheme();
   const {
     personalityProfile,
@@ -238,6 +243,16 @@ export const Learn: React.FC = () => {
       >
         {/* Header */}
         <View className="mb-6">
+          {onBack && (
+            <Pressable
+              onPress={onBack}
+              className="flex-row items-center mb-3"
+              hitSlop={8}
+            >
+              <ChevronLeft size={18} color={theme.mutedStrong} />
+              <Text className="text-[12px] ml-1" style={{ color: theme.mutedStrong }}>Back</Text>
+            </Pressable>
+          )}
           <Text
             className="text-3xl font-black mb-2"
             style={{ color: theme.text, fontFamily: 'Outfit' }}
@@ -257,10 +272,10 @@ export const Learn: React.FC = () => {
             <Lock size={18} color={theme.accent} style={{ marginTop: 2 }} />
             <View className="flex-1 ml-3">
               <Text className="font-black mb-1" style={{ color: theme.text }}>
-                AI coach isn't set up yet
+                Coach is warming up
               </Text>
               <Text style={{ color: theme.mutedStrong, lineHeight: 18 }}>
-                Open Profile → AI coach and pick Groq (free). Then come back here and I'll curate content for you.
+                Try again in a moment, or pick your own provider in Profile → AI coach.
               </Text>
             </View>
           </View>

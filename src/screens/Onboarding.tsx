@@ -7,35 +7,22 @@ import {
   useStore,
   type Tone,
   type ReligiousLevel,
-  type MotivationStyle,
-  type AccountabilityMode,
-  type LifeStage,
   type TriggerTag,
-  type RiskTime,
-  type RecoveryStage,
   type Intensity,
   type LearningStyle,
-  type PrivacyLevel,
-  type Language,
 } from '../store/useStore';
 import { useTheme, BRAND } from '../constants/theme';
 import { LionMark } from '../components/LionMark';
 
 // =============================================================================
-// Onboarding — 12-axis personality builder (§3).
-// All steps (except core recovery/religious/tone) are skippable and can be
-// finished later from Profile.
+// Onboarding — personality builder.
+// Asks only for the axes the rest of the app actually consumes:
+//   religious level, tone, triggers, intensity, learning style.
+// Religious + tone are required; the rest are skippable and editable later
+// from Profile → Personalization.
 // =============================================================================
 
 type Option<T> = { id: T; label: string; desc?: string };
-
-const RECOVERY: Option<NonNullable<RecoveryStage>>[] = [
-  { id: 'day-one', label: 'Day one', desc: 'Just starting fresh.' },
-  { id: 'restarting', label: 'Restarting', desc: 'I had streaks before. Back at it.' },
-  { id: 'maintenance', label: 'Maintenance', desc: 'Stable for a while — keeping it.' },
-  { id: 'severe-relapse-rebuild', label: 'Rebuilding', desc: 'After a deep slip. Rebuilding trust.' },
-  { id: 'helping-friend', label: 'Helping someone', desc: 'I use it to support another.' },
-];
 
 const RELIGIOUS: Option<NonNullable<ReligiousLevel>>[] = [
   { id: 'secular', label: 'Secular', desc: 'Not observant. Cultural / agnostic.' },
@@ -54,13 +41,6 @@ const TONES: Option<NonNullable<Tone>>[] = [
   { id: 'clinical', label: 'Clinical', desc: 'Evidence-based. Neutral.' },
 ];
 
-const MOTIVATION: Option<NonNullable<MotivationStyle>>[] = [
-  { id: 'incentive', label: 'Incentive', desc: 'Rewards, progress, celebration.' },
-  { id: 'punishment', label: 'Punishment', desc: 'Consequences. Stakes.' },
-  { id: 'mixed', label: 'Mixed', desc: 'Both, balanced.' },
-  { id: 'pure-discipline', label: 'Pure discipline', desc: 'No bells. Just the work.' },
-];
-
 const TRIGGERS: Option<TriggerTag>[] = [
   { id: 'stress', label: 'Stress' },
   { id: 'loneliness', label: 'Loneliness' },
@@ -72,23 +52,6 @@ const TRIGGERS: Option<TriggerTag>[] = [
   { id: 'success', label: 'After success' },
   { id: 'travel', label: 'Travel / alone' },
   { id: 'conflict', label: 'Conflict' },
-];
-
-const RISK_TIMES: Option<NonNullable<RiskTime>>[] = [
-  { id: 'morning', label: 'Morning' },
-  { id: 'midday', label: 'Midday' },
-  { id: 'evening', label: 'Evening' },
-  { id: 'late-night', label: 'Late night' },
-];
-
-const LIFE_STAGES: Option<NonNullable<LifeStage>>[] = [
-  { id: 'single', label: 'Single' },
-  { id: 'dating', label: 'Dating' },
-  { id: 'engaged', label: 'Engaged' },
-  { id: 'married', label: 'Married' },
-  { id: 'married-kids', label: 'Married with kids' },
-  { id: 'divorced', label: 'Divorced' },
-  { id: 'widowed', label: 'Widowed' },
 ];
 
 const INTENSITIES: Option<NonNullable<Intensity>>[] = [
@@ -106,64 +69,27 @@ const LEARNING: Option<NonNullable<LearningStyle>>[] = [
   { id: 'talk', label: 'Talking it through' },
 ];
 
-const ACCOUNTABILITY: Option<NonNullable<AccountabilityMode>>[] = [
-  { id: 'solo', label: 'Solo', desc: 'Private. Just me.' },
-  { id: 'partner', label: 'Partner', desc: 'One trusted person.' },
-  { id: 'group', label: 'Group', desc: 'Accountability circle.' },
-  { id: 'anonymous-community', label: 'Anonymous community', desc: 'Opt-in, no identity.' },
-  { id: 'sponsor', label: 'Sponsor', desc: '12-step style guide.' },
-];
-
-const PRIVACY: Option<NonNullable<PrivacyLevel>>[] = [
-  { id: 'fully-private', label: 'Fully private', desc: 'Nobody sees anything.' },
-  { id: 'partner-aggregate', label: 'Partner sees streak only', desc: 'High-level. No details.' },
-  { id: 'partner-detailed', label: 'Partner sees details', desc: 'Falls, triggers, notes.' },
-  { id: 'anonymous-group', label: 'Anonymous in group', desc: 'Stats only, no name.' },
-];
-
-const LANGUAGES: Option<NonNullable<Language>>[] = [
-  { id: 'en', label: 'English' },
-  { id: 'he', label: 'עברית (Hebrew)' },
-  { id: 'yi', label: 'ייִדיש (Yiddish)' },
-  { id: 'es', label: 'Español' },
-  { id: 'fr', label: 'Français' },
-];
-
 type StepId =
   | 'welcome'
-  | 'recovery'
   | 'religious'
   | 'tone'
-  | 'motivation'
   | 'triggers'
-  | 'riskTime'
-  | 'lifeStage'
   | 'intensity'
   | 'learning'
-  | 'accountability'
-  | 'privacyLevel'
-  | 'language'
   | 'privacyPromise';
 
 const ORDER: StepId[] = [
   'welcome',
-  'recovery',
   'religious',
   'tone',
-  'motivation',
   'triggers',
-  'riskTime',
-  'lifeStage',
   'intensity',
   'learning',
-  'accountability',
-  'privacyLevel',
-  'language',
   'privacyPromise',
 ];
 
-// Axes that are *essential* — require an answer. Others skippable.
-const REQUIRED: Set<StepId> = new Set(['recovery', 'religious', 'tone', 'privacyPromise']);
+// Required steps need a real answer before continuing.
+const REQUIRED: Set<StepId> = new Set(['religious', 'tone', 'privacyPromise']);
 
 export const Onboarding: React.FC = () => {
   const { updateProfile, completeOnboarding, acknowledgePrivacyPromise } = useStore();
@@ -172,21 +98,14 @@ export const Onboarding: React.FC = () => {
   const [stepIndex, setStepIndex] = useState(0);
 
   // State for each axis
-  const [recovery, setRecovery] = useState<RecoveryStage>(null);
   const [religious, setReligious] = useState<ReligiousLevel>(null);
   const [customReligious, setCustomReligious] = useState('');
   const [tone, setTone] = useState<Tone>(null);
   const [customTone, setCustomTone] = useState('');
-  const [motivation, setMotivation] = useState<MotivationStyle>(null);
   const [triggers, setTriggers] = useState<TriggerTag[]>([]);
   const [customTriggers, setCustomTriggers] = useState('');
-  const [riskTime, setRiskTime] = useState<RiskTime>(null);
-  const [lifeStage, setLifeStage] = useState<LifeStage>(null);
   const [intensity, setIntensity] = useState<Intensity>(null);
   const [learning, setLearning] = useState<LearningStyle>(null);
-  const [accountability, setAccountability] = useState<AccountabilityMode>(null);
-  const [privacyLevel, setPrivacyLevel] = useState<PrivacyLevel>(null);
-  const [language, setLanguage] = useState<Language>('en');
 
   const step = ORDER[stepIndex];
 
@@ -196,8 +115,6 @@ export const Onboarding: React.FC = () => {
     switch (step) {
       case 'welcome':
         return true;
-      case 'recovery':
-        return recovery !== null;
       case 'religious':
         return religious !== null && (religious !== 'custom' || customReligious.trim().length > 0);
       case 'tone':
@@ -217,21 +134,14 @@ export const Onboarding: React.FC = () => {
         .map((s) => s.trim())
         .filter(Boolean);
       updateProfile({
-        recoveryStage: recovery,
         religiousLevel: religious,
         customReligious,
         tone,
         customTone,
-        motivationStyle: motivation,
         primaryTriggers: triggers,
         customTriggers: customTriggersArr,
-        riskTimeOfDay: riskTime,
-        lifeStage,
         intensity,
         learningStyle: learning,
-        accountabilityMode: accountability,
-        privacyLevel,
-        language,
       });
       acknowledgePrivacyPromise();
       completeOnboarding();
@@ -253,17 +163,6 @@ export const Onboarding: React.FC = () => {
         return (
           <StepWelcome theme={theme} />
         );
-      case 'recovery':
-        return (
-          <SingleSelectStep
-            title="Where are you right now?"
-            subtitle="Honest answer. We meet you here."
-            options={RECOVERY}
-            value={recovery}
-            onSelect={setRecovery}
-            theme={theme}
-          />
-        );
       case 'religious':
         return (
           <SingleSelectStep
@@ -283,7 +182,7 @@ export const Onboarding: React.FC = () => {
         return (
           <SingleSelectStep
             title="How should we speak to you?"
-            subtitle="The voice of the app. You can change it later."
+            subtitle="The voice of Coach. You can change it later."
             options={TONES}
             value={tone}
             onSelect={setTone}
@@ -294,22 +193,11 @@ export const Onboarding: React.FC = () => {
             customPlaceholder="Describe your preferred tone..."
           />
         );
-      case 'motivation':
-        return (
-          <SingleSelectStep
-            title="What drives you?"
-            subtitle="Carrots, sticks, or neither."
-            options={MOTIVATION}
-            value={motivation}
-            onSelect={setMotivation}
-            theme={theme}
-          />
-        );
       case 'triggers':
         return (
           <MultiSelectStep
             title="Pick your triggers"
-            subtitle="Select all that apply. We'll use these to match tactics."
+            subtitle="Select all that apply. We'll match tactics to these."
             options={TRIGGERS}
             selected={triggers}
             onToggle={toggleTrigger}
@@ -318,33 +206,11 @@ export const Onboarding: React.FC = () => {
             customPlaceholder="Other triggers (comma-separated)..."
           />
         );
-      case 'riskTime':
-        return (
-          <SingleSelectStep
-            title="Your riskiest time of day"
-            subtitle="When urges hit hardest."
-            options={RISK_TIMES}
-            value={riskTime}
-            onSelect={setRiskTime}
-            theme={theme}
-          />
-        );
-      case 'lifeStage':
-        return (
-          <SingleSelectStep
-            title="Life stage"
-            subtitle="Shapes your context — nothing more."
-            options={LIFE_STAGES}
-            value={lifeStage}
-            onSelect={setLifeStage}
-            theme={theme}
-          />
-        );
       case 'intensity':
         return (
           <SingleSelectStep
             title="How intense?"
-            subtitle="Choose your pace. Always changeable."
+            subtitle="Pick your pace. Changeable later."
             options={INTENSITIES}
             value={intensity}
             onSelect={setIntensity}
@@ -359,38 +225,6 @@ export const Onboarding: React.FC = () => {
             options={LEARNING}
             value={learning}
             onSelect={setLearning}
-            theme={theme}
-          />
-        );
-      case 'accountability':
-        return (
-          <SingleSelectStep
-            title="Accountability"
-            subtitle="You can change this or go solo forever."
-            options={ACCOUNTABILITY}
-            value={accountability}
-            onSelect={setAccountability}
-            theme={theme}
-          />
-        );
-      case 'privacyLevel':
-        return (
-          <SingleSelectStep
-            title="Sharing level"
-            subtitle="Only relevant if you picked partner or group."
-            options={PRIVACY}
-            value={privacyLevel}
-            onSelect={setPrivacyLevel}
-            theme={theme}
-          />
-        );
-      case 'language':
-        return (
-          <SingleSelectStep
-            title="Language"
-            options={LANGUAGES}
-            value={language}
-            onSelect={setLanguage}
             theme={theme}
           />
         );

@@ -16,9 +16,6 @@ import {
   Trophy,
   Flame,
   Lock,
-  Sun,
-  Moon,
-  Smartphone as SystemIcon,
   Sliders,
   ShieldAlert,
   Brain,
@@ -46,6 +43,7 @@ interface Props {
   onNavigateToInsights: () => void;
   onNavigateToAiConfig: () => void;
   onNavigateToTactics: () => void;
+  onNavigateToLearn: () => void;
   onNavigateToCommunity: () => void;
 }
 
@@ -70,6 +68,7 @@ export const Profile: React.FC<Props> = ({
   onNavigateToInsights,
   onNavigateToAiConfig,
   onNavigateToTactics,
+  onNavigateToLearn,
   onNavigateToCommunity,
 }) => {
   const {
@@ -81,8 +80,6 @@ export const Profile: React.FC<Props> = ({
     resetData,
     checkInStreak,
     ritualStreak,
-    themePreference,
-    setThemePreference,
   } = useStore();
   const { currentStreak, longestStreak, formattedStartDate, level } = useStreak();
   const theme = useTheme();
@@ -233,39 +230,6 @@ export const Profile: React.FC<Props> = ({
         </View>
       </View>
 
-      <Text className="text-guard-accent text-xs uppercase tracking-widest mb-3">Appearance</Text>
-      <View className="bg-guard-surface border border-guard-primary/30 rounded-2xl p-2 mb-6 flex-row">
-        {([
-          { id: 'light', label: 'Light', Icon: Sun },
-          { id: 'dark', label: 'Dark', Icon: Moon },
-          { id: 'system', label: 'System', Icon: SystemIcon },
-        ] as const).map(({ id, label, Icon }) => {
-          const active = themePreference === id;
-          return (
-            <Pressable
-              key={id}
-              onPress={() => setThemePreference(id)}
-              className={`flex-1 flex-row items-center justify-center py-3 rounded-xl ${
-                active ? 'bg-guard-accent' : ''
-              }`}
-            >
-              <Icon
-                size={14}
-                color={active ? theme.onAccent : theme.mutedStrong}
-              />
-              <Text
-                className={`ml-2 text-xs font-black uppercase ${
-                  active ? 'text-guard-on-accent' : 'text-white/60'
-                }`}
-                style={{ letterSpacing: 2 }}
-              >
-                {label}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
-
       <Text className="text-guard-accent text-xs uppercase tracking-widest mb-3">Settings</Text>
       <Pressable
         onPress={onNavigateToYourData}
@@ -294,6 +258,7 @@ export const Profile: React.FC<Props> = ({
       <Row icon={ShieldAlert} label="Watchlist (risk triggers)" onPress={onNavigateToWatchlist} />
       <Row icon={Brain} label="Pattern insights" onPress={onNavigateToInsights} />
       <Row icon={Zap} label="Tactics for the next urge" onPress={onNavigateToTactics ?? (() => {})} />
+      <Row icon={BookOpen} label="Learn (videos, podcasts, books)" onPress={onNavigateToLearn} />
       <Row icon={Users} label="Community (partner, forums, leaderboard)" onPress={onNavigateToCommunity} />
       <Row icon={Bot} label="AI coach (bring your own key)" onPress={onNavigateToAiConfig} />
       <Row icon={Sliders} label="Personalization (12 axes)" onPress={onNavigateToPersonalization} />

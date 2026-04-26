@@ -10,11 +10,11 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { MotiView } from 'moti';
-import { Sparkles, Send, Moon, Lock, AlertCircle } from 'lucide-react-native';
+import { Sparkles, Send, Moon, Lock } from 'lucide-react-native';
 import { Screen } from '../components/Screen';
 import { PrivacyNote } from '../components/PrivacyNote';
 import { useStore } from '../store/useStore';
-import { isAiConfigured, providerLabel } from '../services/aiService';
+import { isAiConfigured } from '../services/aiService';
 import { generateCoachReply, countRecent } from '../services/aiActions';
 
 interface Message {
@@ -58,8 +58,8 @@ export const Coach: React.FC<Props> = ({ onNavigateToAiConfig }) => {
   const aiOn = isAiConfigured(aiCfg);
 
   const seedText = aiOn
-    ? `Coach ready · ${providerLabel(aiProvider)}.\n\nI know your tone, your triggers, and your streak. What's on your mind?`
-    : "Coach AI isn't set up yet. Open Profile → AI coach and pick Groq (free, open-source). Until then, your messages are saved locally.";
+    ? "I know your tone, your triggers, and your streak. What's on your mind?"
+    : "Coach is warming up. Type anything — your messages save locally either way.";
 
   // Map persisted store messages -> UI messages. Hide system entries from the
   // visible chat (they're context for the model only).
@@ -198,32 +198,14 @@ export const Coach: React.FC<Props> = ({ onNavigateToAiConfig }) => {
           <View className="flex-1">
             <Text className="text-xl font-black text-white">Coach</Text>
             <Text className="text-white/50 text-xs">
-              {aiOn
-                ? `${providerLabel(aiProvider)} · ${personalityProfile.tone ?? 'tone not set'}`
-                : 'AI off — using local library'}
+              {personalityProfile.tone ?? 'Here when you need it'}
             </Text>
           </View>
         </View>
 
         <View className="mb-3">
-          <PrivacyNote message="This chat never leaves your phone except to the AI provider you choose — with your own key." />
+          <PrivacyNote message="This chat stays on your phone." />
         </View>
-
-        {!aiOn && (
-          <View
-            className="flex-row items-center rounded-xl px-3 py-2 mb-3"
-            style={{
-              backgroundColor: 'rgba(232,160,32,0.12)',
-              borderWidth: 1,
-              borderColor: 'rgba(232,160,32,0.3)',
-            }}
-          >
-            <AlertCircle size={12} color="#E8A020" />
-            <Text className="text-white/70 text-xs ml-2 flex-1">
-              Profile → AI coach → pick Groq (free, open-source) to activate the coach.
-            </Text>
-          </View>
-        )}
 
         <ScrollView
           ref={scrollRef}

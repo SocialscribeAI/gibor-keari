@@ -1,18 +1,20 @@
 {
   "expo": {
     "name": "Gibor KeAri",
-    "slug": "gibor-keari",
+    "slug": "gibur-keari",
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "scheme": "giborkeari",
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "runtimeVersion": {
       "policy": "appVersion"
     },
     "updates": {
-      "url": "https://u.expo.dev/8b5f63d0-ed50-482d-8e75-f93539823f37",
+      "url": "https://u.expo.dev/258cd0b4-3baf-4834-9e56-1459dd1fa95e",
       "checkAutomatically": "ON_LOAD",
       "fallbackToCacheTimeout": 0,
       "requestHeaders": {
@@ -28,6 +30,9 @@
       "permissions": [
         "NOTIFICATIONS",
         "VIBRATE",
+        "RECEIVE_BOOT_COMPLETED",
+        "NOTIFICATIONS",
+        "VIBRATE",
         "RECEIVE_BOOT_COMPLETED"
       ]
     },
@@ -35,17 +40,26 @@
       "bundler": "metro"
     },
     "plugins": [
-      ["expo-notifications", { "color": "#C89A3C" }],
-      ["expo-build-properties", {
-        "android": {
-          "kotlinVersion": "1.9.25"
+      [
+        "expo-notifications",
+        {
+          "color": "#C89A3C"
         }
-      }]
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "kotlinVersion": "1.9.25"
+          }
+        }
+      ]
     ],
     "extra": {
       "eas": {
-        "projectId": "8b5f63d0-ed50-482d-8e75-f93539823f37"
+        "projectId": "258cd0b4-3baf-4834-9e56-1459dd1fa95e"
       }
-    }
+    },
+    "owner": "shlomoisaacs79"
   }
 }

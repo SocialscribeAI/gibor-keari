@@ -59,10 +59,6 @@ export const Home: React.FC = () => {
   const today = new Date().toISOString().slice(0, 10);
   const todayEntry = calendarLog[today];
 
-  const radius = 110;
-  const circumference = 2 * Math.PI * radius;
-  const offset = circumference * (1 - progress);
-
   const mantra =
     dailyMantraIndex !== null ? mantras[dailyMantraIndex] : mantras[0] || 'I am my choices.';
 
@@ -73,82 +69,97 @@ export const Home: React.FC = () => {
 
   return (
     <Screen>
-      <View className="items-center mb-2 mt-2">
-        <Text className="text-guard-accent text-xs font-black uppercase tracking-widest mb-2">
+      {/* Streak ring + level — at-a-glance status */}
+      <View className="items-center mt-2">
+        <Text className="text-guard-accent text-[11px] font-black uppercase tracking-widest">
           {level}
         </Text>
       </View>
 
-      <View className="items-center justify-center my-4">
-        <View style={{ width: 260, height: 260 }} className="items-center justify-center relative">
-          <Svg width={260} height={260}>
+      <View className="items-center justify-center mt-3 mb-4">
+        <View style={{ width: 220, height: 220 }} className="items-center justify-center relative">
+          <Svg width={220} height={220}>
             <Circle
-              cx={130}
-              cy={130}
-              r={radius}
+              cx={110}
+              cy={110}
+              r={92}
               stroke={theme.hairline}
-              strokeWidth={10}
+              strokeWidth={9}
               fill="none"
             />
             <Circle
-              cx={130}
-              cy={130}
-              r={radius}
+              cx={110}
+              cy={110}
+              r={92}
               stroke={theme.accent}
-              strokeWidth={10}
+              strokeWidth={9}
               fill="none"
-              strokeDasharray={`${circumference} ${circumference}`}
-              strokeDashoffset={offset}
+              strokeDasharray={`${2 * Math.PI * 92} ${2 * Math.PI * 92}`}
+              strokeDashoffset={(2 * Math.PI * 92) * (1 - progress)}
               strokeLinecap="round"
-              transform="rotate(-90 130 130)"
+              transform="rotate(-90 110 110)"
             />
           </Svg>
           <View className="absolute inset-0 items-center justify-center">
-            <Text className="text-7xl font-black text-white">{currentStreak}</Text>
-            <Text className="text-white/50 text-xs uppercase tracking-widest mt-1">days standing</Text>
-            <Text className="text-white/30 text-[10px] mt-2">next: {nextMilestone}d</Text>
+            <Text className="text-6xl font-black text-white">{currentStreak}</Text>
+            <Text className="text-white/60 text-[11px] uppercase tracking-widest mt-1">
+              days standing
+            </Text>
+            <Text className="text-white/40 text-[10px] mt-1">next: {nextMilestone}d</Text>
           </View>
         </View>
       </View>
 
-      <StreakIncentiveBar />
-
-      <View className="bg-guard-surface border border-guard-primary/30 rounded-3xl p-5 mt-6">
-        <Text className="text-white/50 text-xs uppercase tracking-widest mb-2">Daily Mantra</Text>
-        <Text className="text-white text-lg leading-7">{mantra}</Text>
-      </View>
-
-      <View className="flex-row gap-3 mt-6">
+      {/* PRIMARY ACTIONS — visible without scrolling */}
+      <View className="flex-row gap-2.5">
         <Pressable
           onPress={handleWin}
-          className={`flex-1 p-4 rounded-2xl border items-center ${
+          className={`flex-1 py-3.5 rounded-2xl border items-center ${
             todayEntry === 'win'
               ? 'bg-guard-success/20 border-guard-success'
               : 'bg-guard-surface border-guard-primary/30'
           }`}
         >
-          <Check size={22} color={todayEntry === 'win' ? theme.success : theme.text} />
-          <Text className="text-white text-xs font-bold mt-2">STOOD</Text>
+          <Check size={20} color={todayEntry === 'win' ? theme.success : theme.text} />
+          <Text className="text-white text-[11px] font-black mt-1.5 uppercase tracking-wider">
+            Stood
+          </Text>
         </Pressable>
         <Pressable
           onPress={handleClose}
-          className="flex-1 p-4 rounded-2xl border bg-guard-surface border-guard-primary/30 items-center"
+          className="flex-1 py-3.5 rounded-2xl border bg-guard-surface border-guard-primary/30 items-center"
         >
-          <Shield size={22} color={theme.accent} />
-          <Text className="text-white text-xs font-bold mt-2">CLOSE CALL</Text>
+          <Shield size={20} color={theme.accent} />
+          <Text className="text-white text-[11px] font-black mt-1.5 uppercase tracking-wider">
+            Close call
+          </Text>
         </Pressable>
         <Pressable
           onPress={() => setShowFall(true)}
-          className="flex-1 p-4 rounded-2xl border bg-guard-danger/10 border-guard-danger/40 items-center"
+          className="flex-1 py-3.5 rounded-2xl border bg-guard-danger/15 border-guard-danger/50 items-center"
         >
-          <X size={22} color={theme.danger} />
-          <Text className="text-white text-xs font-bold mt-2">STUMBLED</Text>
+          <X size={20} color={theme.danger} />
+          <Text className="text-white text-[11px] font-black mt-1.5 uppercase tracking-wider">
+            Stumbled
+          </Text>
         </Pressable>
       </View>
 
-      <View className="bg-guard-surface border border-guard-primary/30 rounded-3xl p-5 mt-6">
-        <View className="flex-row items-center justify-between mb-3">
-          <Text className="text-white/70 text-xs uppercase tracking-widest">Urge Level</Text>
+      {/* EMERGENCY — large, primary call-to-action when in danger */}
+      <Pressable
+        onPress={() => setShowEmergency(true)}
+        className="mt-3 p-4 rounded-2xl bg-guard-danger border border-guard-danger flex-row items-center justify-center"
+      >
+        <Siren size={20} color="#FFFFFF" />
+        <Text className="font-black uppercase tracking-widest ml-2.5 text-white text-base">
+          Help me now — 60s pause
+        </Text>
+      </Pressable>
+
+      {/* Urge slider — quick triage */}
+      <View className="bg-guard-surface border border-guard-primary/30 rounded-2xl p-4 mt-4">
+        <View className="flex-row items-center justify-between mb-2">
+          <Text className="text-white/70 text-[11px] uppercase tracking-widest">Urge level</Text>
           <Text className="text-guard-accent font-black">{urgeLevel}/10</Text>
         </View>
         <Slider
@@ -165,23 +176,26 @@ export const Home: React.FC = () => {
           <MotiView
             from={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="mt-3 flex-row items-center"
+            className="mt-2 flex-row items-center"
           >
             <AlertTriangle size={14} color={theme.danger} />
-            <Text className="text-guard-danger text-xs ml-2 font-bold uppercase">The lion is restless — act now</Text>
+            <Text className="text-guard-danger text-xs ml-2 font-bold uppercase">
+              The lion is restless — act now
+            </Text>
           </MotiView>
         )}
       </View>
 
-      <Pressable
-        onPress={() => setShowEmergency(true)}
-        className="mt-6 p-5 rounded-2xl bg-guard-danger/10 border border-guard-danger/40 flex-row items-center justify-center"
-      >
-        <Siren size={18} color={theme.danger} />
-        <Text className="text-guard-danger font-black uppercase tracking-widest ml-2">
-          Emergency — 60s pause
+      {/* Mantra — supporting */}
+      <View className="bg-guard-surface border border-guard-primary/30 rounded-2xl p-4 mt-3">
+        <Text className="text-white/50 text-[10px] uppercase tracking-widest mb-1.5">
+          Daily mantra
         </Text>
-      </Pressable>
+        <Text className="text-white text-base leading-6">{mantra}</Text>
+      </View>
+
+      {/* Streak progress — supporting */}
+      <StreakIncentiveBar />
 
       <PostFallProtocol
         isOpen={showFall}

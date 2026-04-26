@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, Pressable } from 'react-native';
 import { MotiView } from 'moti';
-import { Home, Calendar, Sparkles, BookOpen, User, Zap, Users } from 'lucide-react-native';
+import { Home, Calendar, Sparkles, User, Users } from 'lucide-react-native';
 import { useStore } from '../store/useStore';
 import { useTheme } from '../constants/theme';
 
@@ -16,14 +16,14 @@ export const BottomTab: React.FC<BottomTabProps> = ({ activeTab, onTabChange }) 
   const { hasNewCoachMessage, setHasNewCoachMessage } = useStore();
   const theme = useTheme();
 
+  // Five-tab nav: the daily-use surfaces. Tactics + Learn live inside Profile
+  // and the Home action grid so the bar stays uncramped and readable.
   const tabs: { id: TabType; label: string; icon: any }[] = [
     { id: 'home', label: 'Home', icon: Home },
     { id: 'calendar', label: 'Calendar', icon: Calendar },
-    { id: 'tactics', label: 'Tactics', icon: Zap },
     { id: 'coach', label: 'Coach', icon: Sparkles },
-    { id: 'learn', label: 'Learn', icon: BookOpen },
-    { id: 'community', label: 'Community', icon: Users },
-    { id: 'profile', label: 'Profile', icon: User },
+    { id: 'community', label: 'Circle', icon: Users },
+    { id: 'profile', label: 'You', icon: User },
   ];
 
   const handleTabPress = (id: TabType) => {
@@ -36,7 +36,7 @@ export const BottomTab: React.FC<BottomTabProps> = ({ activeTab, onTabChange }) 
       className="absolute bottom-0 left-0 right-0 bg-guard-bg border-t border-guard-primary/30 pb-6"
       style={{ elevation: 20 }}
     >
-      <View className="flex-row justify-around items-center h-20 px-1">
+      <View className="flex-row justify-around items-center h-16 px-2">
         {tabs.map((tab) => {
           const isActive = activeTab === tab.id;
           const Icon = tab.icon;
@@ -46,10 +46,10 @@ export const BottomTab: React.FC<BottomTabProps> = ({ activeTab, onTabChange }) 
             <Pressable
               key={tab.id}
               onPress={() => handleTabPress(tab.id)}
-              className="items-center justify-center flex-1 px-0.5"
+              className="items-center justify-center flex-1"
             >
               <View className="relative">
-                <Icon size={20} color={isActive ? theme.accent : theme.textDim} />
+                <Icon size={22} color={isActive ? theme.accent : theme.muted} />
                 {showBadge && (
                   <MotiView
                     from={{ scale: 0 }}
@@ -61,14 +61,11 @@ export const BottomTab: React.FC<BottomTabProps> = ({ activeTab, onTabChange }) 
               <Text
                 numberOfLines={1}
                 allowFontScaling={false}
-                adjustsFontSizeToFit
-                minimumFontScale={0.7}
-                className="text-[9px] font-black uppercase mt-1.5"
-                style={{ color: isActive ? theme.accent : theme.textDim, letterSpacing: 0.4 }}
+                className="text-[11px] font-bold mt-1"
+                style={{ color: isActive ? theme.accent : theme.muted, letterSpacing: 0.2 }}
               >
                 {tab.label}
               </Text>
-              {isActive && <View className="w-1 h-1 bg-guard-accent rounded-full mt-1" />}
             </Pressable>
           );
         })}
