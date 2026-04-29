@@ -102,16 +102,16 @@ export const CheckInModal: React.FC = () => {
               <Text className="text-[10px] font-black uppercase text-guard-accent tracking-widest">
                 Evening check-in
               </Text>
-              <Text className="text-white/50 text-xs mt-1">
+              <Text className="text-xs mt-1" style={{ color: theme.muted }}>
                 Streak: {checkInStreak} day{checkInStreak === 1 ? '' : 's'}
               </Text>
             </View>
             <Pressable
               onPress={close}
               className="w-9 h-9 rounded-full items-center justify-center"
-              style={{ backgroundColor: 'rgba(255,255,255,0.08)' }}
+              style={{ backgroundColor: theme.surface2 }}
             >
-              <X size={16} color={theme.textDim} />
+              <X size={16} color={theme.text} />
             </Pressable>
           </View>
 
@@ -123,7 +123,7 @@ export const CheckInModal: React.FC = () => {
                   key={s}
                   className="flex-1 h-1 rounded-full"
                   style={{
-                    backgroundColor: s === step ? '#E8A020' : 'rgba(255,255,255,0.1)',
+                    backgroundColor: s === step ? theme.accent : theme.hairline,
                   }}
                 />
               ))}
@@ -143,12 +143,14 @@ export const CheckInModal: React.FC = () => {
                   exit={{ opacity: 0, translateX: -20 }}
                 >
                   <Text
-                    className="text-2xl font-black text-white mb-1"
-                    style={{ fontFamily: 'Outfit' }}
+                    className="text-2xl font-black mb-1"
+                    style={{ fontFamily: 'Outfit', color: theme.text }}
                   >
                     How did you stand today?
                   </Text>
-                  <Text className="text-white/50 text-sm mb-5">No shame either way. Just honest.</Text>
+                  <Text className="text-sm mb-5" style={{ color: theme.muted }}>
+                    No shame either way. Just honest.
+                  </Text>
 
                   <View className="gap-3">
                     <CheckInChoice
@@ -158,6 +160,7 @@ export const CheckInModal: React.FC = () => {
                       color="#1E8A4A"
                       active={status === 'clean'}
                       onPress={() => setStatus('clean')}
+                      theme={theme}
                     />
                     <CheckInChoice
                       label="Tested, but I held"
@@ -166,6 +169,7 @@ export const CheckInModal: React.FC = () => {
                       color="#E8A020"
                       active={status === 'struggled'}
                       onPress={() => setStatus('struggled')}
+                      theme={theme}
                     />
                     <CheckInChoice
                       label="I stumbled"
@@ -174,6 +178,7 @@ export const CheckInModal: React.FC = () => {
                       color="#C0392B"
                       active={status === 'fall'}
                       onPress={() => setStatus('fall')}
+                      theme={theme}
                     />
                   </View>
 
@@ -181,19 +186,19 @@ export const CheckInModal: React.FC = () => {
                     onPress={() => status && setStep('halt')}
                     disabled={!status}
                     className="rounded-2xl py-4 items-center flex-row justify-center mt-6"
-                    style={{ backgroundColor: status ? '#E8A020' : 'rgba(255,255,255,0.06)' }}
+                    style={{ backgroundColor: status ? theme.accent : theme.surface2 }}
                   >
                     <Text
                       className="font-black uppercase tracking-widest mr-2"
-                      style={{ color: status ? '#0F1326' : 'rgba(255,255,255,0.3)' }}
+                      style={{ color: status ? theme.onAccent : theme.muted }}
                     >
                       Continue
                     </Text>
-                    <ArrowRight size={16} color={status ? '#0F1326' : 'rgba(255,255,255,0.3)'} />
+                    <ArrowRight size={16} color={status ? theme.onAccent : theme.muted} />
                   </Pressable>
 
                   <Pressable onPress={skipToDone} disabled={!status} className="py-3 items-center mt-1">
-                    <Text className="text-white/40 text-xs uppercase tracking-widest">
+                    <Text className="text-xs uppercase tracking-widest" style={{ color: theme.muted }}>
                       Skip the rest — just log it
                     </Text>
                   </Pressable>
@@ -207,10 +212,10 @@ export const CheckInModal: React.FC = () => {
                   animate={{ opacity: 1, translateX: 0 }}
                   exit={{ opacity: 0, translateX: -20 }}
                 >
-                  <Text className="text-2xl font-black text-white mb-1" style={{ fontFamily: 'Outfit' }}>
+                  <Text className="text-2xl font-black mb-1" style={{ fontFamily: 'Outfit', color: theme.text }}>
                     HALT check
                   </Text>
-                  <Text className="text-white/50 text-sm mb-5">
+                  <Text className="text-sm mb-5" style={{ color: theme.muted }}>
                     Tap any that applied today. These precede most falls.
                   </Text>
 
@@ -220,28 +225,32 @@ export const CheckInModal: React.FC = () => {
                       icon={Utensils}
                       active={halt.hungry}
                       onPress={() => setHalt({ ...halt, hungry: !halt.hungry })}
+                      theme={theme}
                     />
                     <HaltRow
                       label="Angry / resentful"
                       icon={Flame}
                       active={halt.angry}
                       onPress={() => setHalt({ ...halt, angry: !halt.angry })}
+                      theme={theme}
                     />
                     <HaltRow
                       label="Lonely"
                       icon={Users}
                       active={halt.lonely}
                       onPress={() => setHalt({ ...halt, lonely: !halt.lonely })}
+                      theme={theme}
                     />
                     <HaltRow
                       label="Tired"
                       icon={Moon}
                       active={halt.tired}
                       onPress={() => setHalt({ ...halt, tired: !halt.tired })}
+                      theme={theme}
                     />
                   </View>
 
-                  <NavButtons onBack={() => setStep('status')} onNext={() => setStep('body')} />
+                  <NavButtons onBack={() => setStep('status')} onNext={() => setStep('body')} theme={theme} />
                 </MotiView>
               )}
 
@@ -252,15 +261,19 @@ export const CheckInModal: React.FC = () => {
                   animate={{ opacity: 1, translateX: 0 }}
                   exit={{ opacity: 0, translateX: -20 }}
                 >
-                  <Text className="text-2xl font-black text-white mb-1" style={{ fontFamily: 'Outfit' }}>
+                  <Text className="text-2xl font-black mb-1" style={{ fontFamily: 'Outfit', color: theme.text }}>
                     Body & mood
                   </Text>
-                  <Text className="text-white/50 text-sm mb-5">Quick snapshot.</Text>
+                  <Text className="text-sm mb-5" style={{ color: theme.muted }}>
+                    Quick snapshot.
+                  </Text>
 
                   {/* Mood */}
                   <View className="mb-5">
                     <View className="flex-row justify-between mb-2">
-                      <Text className="text-white/70 text-xs uppercase tracking-widest">Mood</Text>
+                      <Text className="text-xs uppercase tracking-widest" style={{ color: theme.muted }}>
+                        Mood
+                      </Text>
                       <Text className="text-guard-accent font-black">{mood}/10</Text>
                     </View>
                     <Slider
@@ -269,20 +282,26 @@ export const CheckInModal: React.FC = () => {
                       step={1}
                       value={mood}
                       onValueChange={setMood}
-                      minimumTrackTintColor="#E8A020"
-                      maximumTrackTintColor="rgba(255,255,255,0.1)"
-                      thumbTintColor="#E8A020"
+                      minimumTrackTintColor={theme.accent}
+                      maximumTrackTintColor={theme.hairline}
+                      thumbTintColor={theme.accent}
                     />
                     <View className="flex-row justify-between mt-1">
-                      <Text className="text-white/30 text-[10px]">low</Text>
-                      <Text className="text-white/30 text-[10px]">great</Text>
+                      <Text className="text-[10px]" style={{ color: theme.textDim }}>
+                        low
+                      </Text>
+                      <Text className="text-[10px]" style={{ color: theme.textDim }}>
+                        great
+                      </Text>
                     </View>
                   </View>
 
                   {/* Sleep */}
                   <View className="mb-5">
                     <View className="flex-row justify-between mb-2">
-                      <Text className="text-white/70 text-xs uppercase tracking-widest">Sleep last night</Text>
+                      <Text className="text-xs uppercase tracking-widest" style={{ color: theme.muted }}>
+                        Sleep last night
+                      </Text>
                       <Text className="text-guard-accent font-black">{sleepHours}h</Text>
                     </View>
                     <Slider
@@ -291,14 +310,14 @@ export const CheckInModal: React.FC = () => {
                       step={0.5}
                       value={sleepHours}
                       onValueChange={setSleepHours}
-                      minimumTrackTintColor="#E8A020"
-                      maximumTrackTintColor="rgba(255,255,255,0.1)"
-                      thumbTintColor="#E8A020"
+                      minimumTrackTintColor={theme.accent}
+                      maximumTrackTintColor={theme.hairline}
+                      thumbTintColor={theme.accent}
                     />
                   </View>
 
                   {/* Exercise */}
-                  <Text className="text-white/70 text-xs uppercase tracking-widest mb-2">
+                  <Text className="text-xs uppercase tracking-widest mb-2" style={{ color: theme.muted }}>
                     Moved your body?
                   </Text>
                   <View className="flex-row gap-2 mb-3">
@@ -306,14 +325,14 @@ export const CheckInModal: React.FC = () => {
                       onPress={() => setExercised(true)}
                       className="flex-1 rounded-2xl py-3 items-center"
                       style={{
-                        backgroundColor: exercised === true ? 'rgba(30,138,74,0.2)' : '#1A1E35',
+                        backgroundColor: exercised === true ? `${theme.success}25` : theme.surface2,
                         borderWidth: 1,
-                        borderColor: exercised === true ? '#1E8A4A' : 'rgba(44,62,122,0.3)',
+                        borderColor: exercised === true ? theme.success : theme.hairline,
                       }}
                     >
                       <Text
                         className="font-bold"
-                        style={{ color: exercised === true ? '#1E8A4A' : 'rgba(255,255,255,0.7)' }}
+                        style={{ color: exercised === true ? theme.success : theme.text }}
                       >
                         Yes
                       </Text>
@@ -322,21 +341,21 @@ export const CheckInModal: React.FC = () => {
                       onPress={() => setExercised(false)}
                       className="flex-1 rounded-2xl py-3 items-center"
                       style={{
-                        backgroundColor: exercised === false ? 'rgba(232,160,32,0.15)' : '#1A1E35',
+                        backgroundColor: exercised === false ? `${theme.accent}25` : theme.surface2,
                         borderWidth: 1,
-                        borderColor: exercised === false ? '#E8A020' : 'rgba(44,62,122,0.3)',
+                        borderColor: exercised === false ? theme.accent : theme.hairline,
                       }}
                     >
                       <Text
                         className="font-bold"
-                        style={{ color: exercised === false ? '#E8A020' : 'rgba(255,255,255,0.7)' }}
+                        style={{ color: exercised === false ? theme.accent : theme.text }}
                       >
                         No
                       </Text>
                     </Pressable>
                   </View>
 
-                  <NavButtons onBack={() => setStep('halt')} onNext={() => setStep('reflect')} />
+                  <NavButtons onBack={() => setStep('halt')} onNext={() => setStep('reflect')} theme={theme} />
                 </MotiView>
               )}
 
@@ -347,29 +366,32 @@ export const CheckInModal: React.FC = () => {
                   animate={{ opacity: 1, translateX: 0 }}
                   exit={{ opacity: 0, translateX: -20 }}
                 >
-                  <Text className="text-2xl font-black text-white mb-1" style={{ fontFamily: 'Outfit' }}>
+                  <Text className="text-2xl font-black mb-1" style={{ fontFamily: 'Outfit', color: theme.text }}>
                     Close the loop
                   </Text>
-                  <Text className="text-white/50 text-sm mb-5">Optional. 30 seconds.</Text>
+                  <Text className="text-sm mb-5" style={{ color: theme.muted }}>
+                    Optional. 30 seconds.
+                  </Text>
 
-                  <Text className="text-white/70 text-xs uppercase tracking-widest mb-2">
+                  <Text className="text-xs uppercase tracking-widest mb-2" style={{ color: theme.muted }}>
                     One thing you're grateful for
                   </Text>
                   <TextInput
                     value={gratitude}
                     onChangeText={setGratitude}
                     placeholder="Anything. Even tiny."
-                    placeholderTextColor="rgba(255,255,255,0.3)"
-                    className="text-white rounded-2xl px-4 py-3 mb-4"
+                    placeholderTextColor={theme.textDim}
+                    className="rounded-2xl px-4 py-3 mb-4"
                     style={{
-                      backgroundColor: '#1A1E35',
+                      backgroundColor: theme.surface2,
                       borderWidth: 1,
-                      borderColor: 'rgba(44,62,122,0.4)',
+                      borderColor: theme.hairline,
                       fontSize: 14,
+                      color: theme.text,
                     }}
                   />
 
-                  <Text className="text-white/70 text-xs uppercase tracking-widest mb-2">
+                  <Text className="text-xs uppercase tracking-widest mb-2" style={{ color: theme.muted }}>
                     What did today teach you?
                   </Text>
                   <TextInput
@@ -377,32 +399,35 @@ export const CheckInModal: React.FC = () => {
                     onChangeText={setReflection}
                     multiline
                     placeholder="A pattern you noticed. A trigger. A win."
-                    placeholderTextColor="rgba(255,255,255,0.3)"
-                    className="text-white rounded-2xl px-4 py-3"
+                    placeholderTextColor={theme.textDim}
+                    className="rounded-2xl px-4 py-3"
                     style={{
-                      backgroundColor: '#1A1E35',
+                      backgroundColor: theme.surface2,
                       borderWidth: 1,
-                      borderColor: 'rgba(44,62,122,0.4)',
+                      borderColor: theme.hairline,
                       minHeight: 80,
                       textAlignVertical: 'top',
                       fontSize: 14,
                       lineHeight: 22,
+                      color: theme.text,
                     }}
                   />
 
                   <Pressable
                     onPress={commit}
                     className="rounded-2xl py-4 items-center flex-row justify-center mt-5"
-                    style={{ backgroundColor: '#E8A020' }}
+                    style={{ backgroundColor: theme.accent }}
                   >
-                    <Check size={16} color="#0F1326" />
-                    <Text className="font-black uppercase tracking-widest ml-2 text-guard-bg">
+                    <Check size={16} color={theme.onAccent} />
+                    <Text className="font-black uppercase tracking-widest ml-2" style={{ color: theme.onAccent }}>
                       Lock it in
                     </Text>
                   </Pressable>
 
                   <Pressable onPress={() => setStep('body')} className="py-3 items-center mt-1">
-                    <Text className="text-white/40 text-xs uppercase tracking-widest">← Back</Text>
+                    <Text className="text-xs uppercase tracking-widest" style={{ color: theme.muted }}>
+                      ← Back
+                    </Text>
                   </Pressable>
                 </MotiView>
               )}
@@ -416,14 +441,14 @@ export const CheckInModal: React.FC = () => {
                 >
                   <View
                     className="w-20 h-20 rounded-full items-center justify-center mb-5"
-                    style={{ backgroundColor: 'rgba(30,138,74,0.2)' }}
+                    style={{ backgroundColor: `${theme.success}25` }}
                   >
-                    <Check size={40} color="#1E8A4A" />
+                    <Check size={40} color={theme.success} />
                   </View>
-                  <Text className="text-2xl font-black text-white" style={{ fontFamily: 'Outfit' }}>
+                  <Text className="text-2xl font-black" style={{ fontFamily: 'Outfit', color: theme.text }}>
                     Logged.
                   </Text>
-                  <Text className="text-white/60 text-center mt-2 leading-6 max-w-xs">
+                  <Text className="text-center mt-2 leading-6 max-w-xs" style={{ color: theme.muted }}>
                     Showing up every night is the win.
                   </Text>
                 </MotiView>
@@ -443,80 +468,90 @@ const CheckInChoice: React.FC<{
   color: string;
   active: boolean;
   onPress: () => void;
-}> = ({ label, sub, icon: Icon, color, active, onPress }) => (
+  theme: any;
+}> = ({ label, sub, icon: Icon, color, active, onPress, theme }) => (
   <Pressable
     onPress={onPress}
     className="rounded-2xl px-5 py-4 flex-row items-center"
     style={{
-      backgroundColor: active ? `${color}22` : '#1A1E35',
+      backgroundColor: active ? `${color}22` : theme.surface2,
       borderWidth: 1,
-      borderColor: active ? color : 'rgba(44,62,122,0.3)',
+      borderColor: active ? color : theme.hairline,
     }}
   >
     <View
       className="w-10 h-10 rounded-xl items-center justify-center mr-3"
-      style={{ backgroundColor: active ? `${color}33` : 'rgba(255,255,255,0.05)' }}
+      style={{ backgroundColor: active ? `${color}33` : theme.surface }}
     >
-      <Icon size={18} color={active ? color : 'rgba(255,255,255,0.6)'} />
+      <Icon size={18} color={active ? color : theme.text} />
     </View>
     <View className="flex-1">
-      <Text className="text-white font-black text-base">{label}</Text>
-      <Text className="text-white/50 text-xs mt-0.5">{sub}</Text>
+      <Text className="font-black text-base" style={{ color: theme.text }}>
+        {label}
+      </Text>
+      <Text className="text-xs mt-0.5" style={{ color: theme.muted }}>
+        {sub}
+      </Text>
     </View>
   </Pressable>
 );
 
-const HaltRow: React.FC<{ label: string; icon: any; active: boolean; onPress: () => void }> = ({
+const HaltRow: React.FC<{ label: string; icon: any; active: boolean; onPress: () => void; theme: any }> = ({
   label,
   icon: Icon,
   active,
   onPress,
+  theme,
 }) => (
   <Pressable
     onPress={onPress}
     className="flex-row items-center rounded-2xl px-4 py-3"
     style={{
-      backgroundColor: active ? 'rgba(232,160,32,0.15)' : '#1A1E35',
+      backgroundColor: active ? `${theme.accent}25` : theme.surface2,
       borderWidth: 1,
-      borderColor: active ? '#E8A020' : 'rgba(44,62,122,0.3)',
+      borderColor: active ? theme.accent : theme.hairline,
     }}
   >
-    <Icon size={18} color={active ? '#E8A020' : 'rgba(255,255,255,0.5)'} />
+    <Icon size={18} color={active ? theme.accent : theme.muted} />
     <Text
       className="flex-1 ml-3 font-bold"
-      style={{ color: active ? 'white' : 'rgba(255,255,255,0.7)' }}
+      style={{ color: active ? theme.text : theme.text }}
     >
       {label}
     </Text>
     <View
       className="w-5 h-5 rounded-md items-center justify-center"
       style={{
-        backgroundColor: active ? '#E8A020' : 'transparent',
+        backgroundColor: active ? theme.accent : 'transparent',
         borderWidth: 1,
-        borderColor: active ? '#E8A020' : 'rgba(255,255,255,0.2)',
+        borderColor: active ? theme.accent : theme.hairline,
       }}
     >
-      {active && <Check size={12} color="#0F1326" />}
+      {active && <Check size={12} color={theme.onAccent} />}
     </View>
   </Pressable>
 );
 
-const NavButtons: React.FC<{ onBack: () => void; onNext: () => void }> = ({ onBack, onNext }) => (
+const NavButtons: React.FC<{ onBack: () => void; onNext: () => void; theme: any }> = ({ onBack, onNext, theme }) => (
   <View className="flex-row gap-2 mt-6">
     <Pressable
       onPress={onBack}
       className="flex-1 rounded-2xl py-4 items-center"
-      style={{ backgroundColor: 'rgba(255,255,255,0.05)' }}
+      style={{ backgroundColor: theme.surface2 }}
     >
-      <Text className="text-white/60 font-bold uppercase text-xs tracking-widest">Back</Text>
+      <Text className="font-bold uppercase text-xs tracking-widest" style={{ color: theme.muted }}>
+        Back
+      </Text>
     </Pressable>
     <Pressable
       onPress={onNext}
       className="flex-[2] rounded-2xl py-4 items-center flex-row justify-center"
-      style={{ backgroundColor: '#E8A020' }}
+      style={{ backgroundColor: theme.accent }}
     >
-      <Text className="text-guard-bg font-black uppercase tracking-widest mr-2">Next</Text>
-      <ArrowRight size={16} color="#0F1326" />
+      <Text className="font-black uppercase tracking-widest mr-2" style={{ color: theme.onAccent }}>
+        Next
+      </Text>
+      <ArrowRight size={16} color={theme.onAccent} />
     </Pressable>
   </View>
 );

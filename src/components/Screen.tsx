@@ -1,6 +1,5 @@
 import React from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
-import { MotiView } from 'moti';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 interface ScreenProps {
@@ -15,12 +14,13 @@ interface ScreenProps {
 /**
  * Standard screen frame.
  *
- * - Top safe-area is handled by the App-level banners (AlphaBanner / UpdateBanner)
- *   which are wrapped in their own SafeAreaView, so we only pad the bottom here.
- *   This prevents the status bar from covering the alpha banner.
- * - Wraps content in KeyboardAvoidingView so Continue/Submit buttons stay visible
- *   when the keyboard is open. (Without this the keyboard hid CTAs on the
- *   onboarding / vow / mantra screens.)
+ * - Bottom padding lives in `contentContainerStyle.paddingBottom` (not on the
+ *   ScrollView's outer style) so the tab bar (~80px tall, absolute) doesn't
+ *   clip the last bit of scrollable content. Padding on the outer ScrollView
+ *   shrinks the visible viewport instead of extending scroll length.
+ * - The page-level transition animation lives in Navigator.tsx; the inner
+ *   MotiView that used to live here was creating nested mount animations on
+ *   every tab switch, which felt glitchy.
  */
 export const Screen: React.FC<ScreenProps> = ({
   children,
@@ -30,7 +30,7 @@ export const Screen: React.FC<ScreenProps> = ({
   withBottomTabSpace = true,
 }) => {
   const padding = withPadding ? 'px-6 pt-6' : '';
-  const bottomPad = withBottomTabSpace ? 'pb-32' : 'pb-6';
+  const bottomPadding = withBottomTabSpace ? 140 : 32;
   const Container: any = scroll ? ScrollView : View;
 
   return (
@@ -40,23 +40,18 @@ export const Screen: React.FC<ScreenProps> = ({
         style={{ flex: 1 }}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 24}
       >
-        <MotiView
-          from={{ opacity: 0, translateY: 10 }}
-          animate={{ opacity: 1, translateY: 0 }}
-          transition={{ type: 'timing', duration: 300 }}
-          className="flex-1"
+        <Container
+          className={`flex-1 ${padding} ${className}`}
+          contentContainerStyle={
+            scroll ? { flexGrow: 1, paddingBottom: bottomPadding } : undefined
+          }
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
         >
-          <Container
-            className={`flex-1 ${padding} ${bottomPad} ${className}`}
-            contentContainerStyle={
-              scroll ? { flexGrow: 1, paddingBottom: 32 } : undefined
-            }
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-          >
-            {children}
-          </Container>
-        </MotiView>
+          {scroll ? children : (
+            <View style={{ flex: 1, paddingBottom: bottomPadding }}>{children}</View>
+          )}
+        </Container>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

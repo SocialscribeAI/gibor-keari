@@ -204,6 +204,7 @@ export const Onboarding: React.FC = () => {
             customValue={customTriggers}
             onCustomChange={setCustomTriggers}
             customPlaceholder="Other triggers (comma-separated)..."
+            theme={theme}
           />
         );
       case 'intensity':
@@ -243,10 +244,10 @@ export const Onboarding: React.FC = () => {
         <View className="mb-4 mt-2">
           <View className="flex-row items-center justify-between mb-2">
             <Pressable onPress={back} className="flex-row items-center">
-              <ChevronLeft size={16} color="rgba(255,255,255,0.5)" />
-              <Text className="text-white/50 text-xs ml-1">Back</Text>
+              <ChevronLeft size={16} color={theme.muted} />
+              <Text className="text-xs ml-1" style={{ color: theme.muted }}>Back</Text>
             </Pressable>
-            <Text className="text-white/40 text-[10px] uppercase tracking-widest">
+            <Text className="text-[10px] uppercase tracking-widest" style={{ color: theme.textDim }}>
               {stepIndex} of {ORDER.length - 1}
             </Text>
           </View>
@@ -257,7 +258,7 @@ export const Onboarding: React.FC = () => {
                 className="flex-1 h-1 rounded-full"
                 style={{
                   backgroundColor:
-                    i < stepIndex ? '#E8A020' : i === stepIndex - 1 + 1 ? 'rgba(232,160,32,0.5)' : 'rgba(255,255,255,0.08)',
+                    i < stepIndex ? theme.accent : i === stepIndex - 1 + 1 ? `${theme.accent}80` : theme.hairline,
                 }}
               />
             ))}
@@ -290,15 +291,15 @@ export const Onboarding: React.FC = () => {
           onPress={next}
           disabled={!canAdvance()}
           className="py-5 rounded-2xl flex-row items-center justify-center"
-          style={{ backgroundColor: canAdvance() ? '#E8A020' : 'rgba(255,255,255,0.05)' }}
+          style={{ backgroundColor: canAdvance() ? theme.accent : theme.surface2 }}
         >
           <Text
             className="font-black uppercase tracking-widest mr-2"
-            style={{ color: canAdvance() ? '#0F1326' : 'rgba(255,255,255,0.3)' }}
+            style={{ color: canAdvance() ? theme.onAccent : theme.muted }}
           >
             {isPromise ? 'Stand strong' : isWelcome ? 'Begin' : 'Continue'}
           </Text>
-          <ArrowRight size={18} color={canAdvance() ? '#0F1326' : 'rgba(255,255,255,0.3)'} />
+          <ArrowRight size={18} color={canAdvance() ? theme.onAccent : theme.muted} />
         </Pressable>
       </View>
     </Screen>
@@ -393,21 +394,31 @@ function SingleSelectStep<T extends string>({
       <Text className="text-3xl font-black text-white mb-2" style={{ fontFamily: 'Outfit' }}>
         {title}
       </Text>
-      {subtitle && <Text className="text-white/50 mb-6 leading-6">{subtitle}</Text>}
+      {subtitle && (
+        <Text className="mb-6 leading-6" style={{ color: theme.muted }}>
+          {subtitle}
+        </Text>
+      )}
       {options.map((o) => (
         <Pressable
           key={o.id}
           onPress={() => onSelect(o.id)}
           className="mb-2.5 p-4 rounded-2xl flex-row items-center"
           style={{
-            backgroundColor: value === o.id ? 'rgba(232,160,32,0.12)' : '#1A1E35',
+            backgroundColor: value === o.id ? `${theme.accent}20` : theme.surface2,
             borderWidth: 1,
-            borderColor: value === o.id ? '#E8A020' : 'rgba(44,62,122,0.3)',
+            borderColor: value === o.id ? theme.accent : theme.hairline,
           }}
         >
           <View className="flex-1">
-            <Text className="text-white font-black text-base">{o.label}</Text>
-            {o.desc && <Text className="text-white/50 text-xs mt-1">{o.desc}</Text>}
+            <Text className="font-black text-base" style={{ color: theme.text }}>
+              {o.label}
+            </Text>
+            {o.desc && (
+              <Text className="text-xs mt-1" style={{ color: theme.muted }}>
+                {o.desc}
+              </Text>
+            )}
           </View>
           {value === o.id && <Check size={18} color={theme.accent} />}
         </Pressable>
@@ -417,15 +428,19 @@ function SingleSelectStep<T extends string>({
           onPress={() => onSelect('custom' as unknown as T)}
           className="mb-2.5 p-4 rounded-2xl flex-row items-center"
           style={{
-            backgroundColor: isCustom ? 'rgba(232,160,32,0.12)' : '#1A1E35',
+            backgroundColor: isCustom ? `${theme.accent}20` : theme.surface2,
             borderWidth: 1,
-            borderColor: isCustom ? '#E8A020' : 'rgba(44,62,122,0.3)',
+            borderColor: isCustom ? theme.accent : theme.hairline,
             borderStyle: 'dashed',
           }}
         >
           <View className="flex-1">
-            <Text className="text-white font-black text-base">Custom</Text>
-            <Text className="text-white/50 text-xs mt-1">Define your own.</Text>
+            <Text className="font-black text-base" style={{ color: theme.text }}>
+              Custom
+            </Text>
+            <Text className="text-xs mt-1" style={{ color: theme.muted }}>
+              Define your own.
+            </Text>
           </View>
           {isCustom && <Check size={18} color={theme.accent} />}
         </Pressable>
@@ -436,11 +451,12 @@ function SingleSelectStep<T extends string>({
           onChangeText={onCustomChange}
           placeholder={customPlaceholder}
           placeholderTextColor={theme.textDim}
-          className="text-white rounded-2xl px-4 py-3 mt-2"
+          className="rounded-2xl px-4 py-3 mt-2"
           style={{
-            backgroundColor: '#1A1E35',
+            backgroundColor: theme.surface2,
             borderWidth: 1,
-            borderColor: '#E8A020',
+            borderColor: theme.accent,
+            color: theme.text,
           }}
         />
       )}
@@ -457,6 +473,7 @@ interface MultiSelectProps<T> {
   customValue?: string;
   onCustomChange?: (v: string) => void;
   customPlaceholder?: string;
+  theme: any;
 }
 
 function MultiSelectStep<T extends string>({
@@ -468,13 +485,18 @@ function MultiSelectStep<T extends string>({
   customValue,
   onCustomChange,
   customPlaceholder,
+  theme,
 }: MultiSelectProps<T>) {
   return (
     <View className="pt-2">
-      <Text className="text-3xl font-black text-white mb-2" style={{ fontFamily: 'Outfit' }}>
+      <Text className="text-3xl font-black mb-2" style={{ fontFamily: 'Outfit', color: theme.text }}>
         {title}
       </Text>
-      {subtitle && <Text className="text-white/50 mb-6 leading-6">{subtitle}</Text>}
+      {subtitle && (
+        <Text className="mb-6 leading-6" style={{ color: theme.muted }}>
+          {subtitle}
+        </Text>
+      )}
       <View className="flex-row flex-wrap gap-2">
         {options.map((o) => {
           const active = selected.includes(o.id);
@@ -484,14 +506,14 @@ function MultiSelectStep<T extends string>({
               onPress={() => onToggle(o.id)}
               className="rounded-full px-4 py-2.5"
               style={{
-                backgroundColor: active ? 'rgba(232,160,32,0.15)' : '#1A1E35',
+                backgroundColor: active ? `${theme.accent}25` : theme.surface2,
                 borderWidth: 1,
-                borderColor: active ? '#E8A020' : 'rgba(44,62,122,0.3)',
+                borderColor: active ? theme.accent : theme.hairline,
               }}
             >
               <Text
                 className="font-bold text-sm"
-                style={{ color: active ? '#E8A020' : 'rgba(255,255,255,0.7)' }}
+                style={{ color: active ? theme.accent : theme.text }}
               >
                 {o.label}
               </Text>
@@ -504,12 +526,13 @@ function MultiSelectStep<T extends string>({
           value={customValue}
           onChangeText={onCustomChange}
           placeholder={customPlaceholder}
-          placeholderTextColor="rgba(255,255,255,0.3)"
-          className="text-white rounded-2xl px-4 py-3 mt-5"
+          placeholderTextColor={theme.textDim}
+          className="rounded-2xl px-4 py-3 mt-5"
           style={{
-            backgroundColor: '#1A1E35',
+            backgroundColor: theme.surface2,
             borderWidth: 1,
-            borderColor: 'rgba(44,62,122,0.4)',
+            borderColor: theme.hairline,
+            color: theme.text,
           }}
         />
       )}

@@ -1,20 +1,22 @@
 import { useEffect } from 'react';
 import { useColorScheme } from 'nativewind';
+import { useStore } from '../store/useStore';
 
 /**
- * Forces the app into dark mode at all times.
- *
- * Light mode is intentionally disabled — too many components use hardcoded
- * `rgba(255,255,255,...)` placeholder/border colors that become white-on-
- * parchment in light mode and unreadable. Until every call site is audited
- * and migrated to theme tokens, dark is the only supported scheme.
+ * Syncs app theme with user preference from the store.
+ * Responds to theme changes and keeps nativewind in sync.
  */
 export const ThemeManager: React.FC = () => {
   const { setColorScheme } = useColorScheme();
+  const themePreference = useStore((s) => s.themePreference);
 
   useEffect(() => {
-    setColorScheme('dark');
-  }, [setColorScheme]);
+    if (themePreference === 'system') {
+      setColorScheme('system');
+    } else {
+      setColorScheme(themePreference);
+    }
+  }, [themePreference, setColorScheme]);
 
   return null;
 };

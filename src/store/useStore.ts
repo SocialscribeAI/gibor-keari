@@ -564,6 +564,7 @@ interface GuardState {
   removeRiskyApp: (id: string) => void;
   toggleTacticToToolkit: (tacticId: string) => void;
   syncStreak: () => void;
+  recomputeStreak: () => void;
   completeOnboarding: () => void;
 
   // Coach memory
@@ -731,12 +732,19 @@ export const useStore = create<GuardState>()(
 
       logFall: () => {
         const { totalFallCount, calendarLog } = get();
-        const today = format(new Date(), 'yyyy-MM-dd');
+        const now = new Date();
+        const today = format(now, 'yyyy-MM-dd');
+        // Streak resets to "Day 1 starts tomorrow." Setting streakStart to
+        // tomorrow keeps Home un-gated (vs. null which used to bounce the user
+        // back into VowScreen) and matches the standard recovery convention:
+        // today is the fall, tomorrow is Day 1.
+        const tomorrow = new Date(now);
+        tomorrow.setDate(now.getDate() + 1);
         set({
-          streakStart: null,
+          streakStart: tomorrow.toISOString(),
           currentStreak: 0,
           totalFallCount: totalFallCount + 1,
-          lastCheckIn: new Date().toISOString(),
+          lastCheckIn: now.toISOString(),
           calendarLog: { ...calendarLog, [today]: 'fall' },
         });
       },
@@ -770,9 +778,11 @@ export const useStore = create<GuardState>()(
           date: now.toISOString(),
           dayKey,
         };
+        const tomorrow = new Date(now);
+        tomorrow.setDate(now.getDate() + 1);
         set({
           fallEvents: [full, ...fallEvents],
-          streakStart: null,
+          streakStart: tomorrow.toISOString(),
           currentStreak: 0,
           totalFallCount: totalFallCount + 1,
           lastCheckIn: now.toISOString(),
@@ -953,7 +963,42 @@ export const useStore = create<GuardState>()(
         set({ currentStreak: Math.max(0, days), calendarLog: updatedLog });
       },
 
-      completeOnboarding: () => set({ hasCompletedOnboarding: true }),
+      // Repositions streakStart based on the calendar log:
+      // streakStart = day after the most recent 'fall' (or unchanged if no fall).
+      // Called after the user edits a past day so the streak counter stays
+      // consistent with what they've recorded.
+      recomputeStreak: () => {
+        const { calendarLog, streakStart, memberSince } = get();
+        const fallDays = Object.entries(calendarLog)
+          .filter(([, status]) => status === 'fall')
+          .map(([day]) => day)
+          .sort();
+        const mostRecentFall = fallDays[fallDays.length - 1];
+        let nextStreakStart: string | null = streakStart;
+        if (mostRecentFall) {
+          const [y, m, d] = mostRecentFall.split('-').map(Number);
+          const dayAfter = new Date(y, m - 1, d + 1);
+          nextStreakStart = dayAfter.toISOString();
+        } else if (!streakStart) {
+          // No falls and no active streak — anchor to memberSince so the user
+          // sees a number on Home without having to set rewards first.
+          nextStreakStart = memberSince ?? new Date().toISOString();
+        }
+        set({ streakStart: nextStreakStart });
+        get().syncStreak();
+      },
+
+      completeOnboarding: () => {
+        set({ hasCompletedOnboarding: true });
+        // Auto-start the streak so the user lands on Home Day 0 instead of
+        // being kicked into VowScreen. Vows are now optional and edited from
+        // Home via an inline banner.
+        const { streakStart } = get();
+        if (!streakStart) {
+          const now = new Date().toISOString();
+          set({ streakStart: now, currentStreak: 0, lastCheckIn: now });
+        }
+      },
 
       appendCoachMessage: (msg) => {
         const { coachMessages } = get();
@@ -1061,6 +1106,10 @@ export const useStore = create<GuardState>()(
         if (entry === null) delete next[dayKey];
         else next[dayKey] = entry;
         set({ calendarLog: next });
+        // Editing a past day can shift the most-recent fall (which defines
+        // where the current streak begins). recomputeStreak repositions
+        // streakStart to "day after most recent fall" and re-counts.
+        get().recomputeStreak();
       },
 
       setCalendarNote: (dayKey, note) => {

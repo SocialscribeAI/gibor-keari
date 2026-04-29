@@ -194,7 +194,7 @@ export const DangerMode: React.FC<Props> = ({ isOpen, onClose }) => {
 
   return (
     <Modal visible={isOpen} transparent animationType="slide" onRequestClose={handleClose}>
-      <View style={{ flex: 1, backgroundColor: '#0F1120' }}>
+      <View style={{ flex: 1, backgroundColor: theme.bg }}>
         {/* Header */}
         <View
           style={{
@@ -204,12 +204,12 @@ export const DangerMode: React.FC<Props> = ({ isOpen, onClose }) => {
             paddingHorizontal: 20,
             paddingBottom: 16,
             borderBottomWidth: 1,
-            borderBottomColor: 'rgba(232,160,32,0.2)',
+            borderBottomColor: theme.hairline,
           }}
         >
           <View style={{ flex: 1 }}>
             <Text style={{ color: theme.accent, fontSize: 22, fontWeight: '900' }}>Danger Mode</Text>
-            <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12 }}>
+            <Text style={{ color: theme.muted, fontSize: 12 }}>
               Urges peak and pass. You can ride this out.
             </Text>
           </View>
@@ -219,12 +219,12 @@ export const DangerMode: React.FC<Props> = ({ isOpen, onClose }) => {
               width: 36,
               height: 36,
               borderRadius: 10,
-              backgroundColor: 'rgba(255,255,255,0.08)',
+              backgroundColor: theme.surface2,
               alignItems: 'center',
               justifyContent: 'center',
             }}
           >
-            <X size={16} color="rgba(255,255,255,0.7)" />
+            <X size={16} color={theme.text} />
           </Pressable>
         </View>
 
@@ -241,10 +241,10 @@ export const DangerMode: React.FC<Props> = ({ isOpen, onClose }) => {
               marginBottom: 20,
             }}
           >
-            <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 10, fontWeight: '800', letterSpacing: 2, marginBottom: 6 }}>
+            <Text style={{ color: theme.muted, fontSize: 10, fontWeight: '800', letterSpacing: 2, marginBottom: 6 }}>
               YOUR MANTRA
             </Text>
-            <Text style={{ color: '#ffffff', fontSize: 16, lineHeight: 24, fontWeight: '700' }}>{mantra}</Text>
+            <Text style={{ color: theme.text, fontSize: 16, lineHeight: 24, fontWeight: '700' }}>{mantra}</Text>
           </View>
 
           {/* Countdown */}
@@ -303,7 +303,7 @@ export const DangerMode: React.FC<Props> = ({ isOpen, onClose }) => {
           </View>
 
           {/* Trigger selection */}
-          <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 11, fontWeight: '800', letterSpacing: 2, marginBottom: 10 }}>
+          <Text style={{ color: theme.muted, fontSize: 11, fontWeight: '800', letterSpacing: 2, marginBottom: 10 }}>
             WHAT'S HAPPENING RIGHT NOW?
           </Text>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 20 }}>
@@ -314,9 +314,9 @@ export const DangerMode: React.FC<Props> = ({ isOpen, onClose }) => {
                   key={t.id}
                   onPress={() => toggleTrigger(t.id)}
                   style={{
-                    backgroundColor: active ? 'rgba(232,160,32,0.2)' : 'rgba(255,255,255,0.06)',
+                    backgroundColor: active ? `${theme.accent}25` : theme.surface2,
                     borderWidth: 1,
-                    borderColor: active ? 'rgba(232,160,32,0.6)' : 'rgba(255,255,255,0.12)',
+                    borderColor: active ? theme.accent : theme.hairline,
                     borderRadius: 20,
                     paddingVertical: 8,
                     paddingHorizontal: 14,
@@ -326,7 +326,7 @@ export const DangerMode: React.FC<Props> = ({ isOpen, onClose }) => {
                   }}
                 >
                   <Text style={{ fontSize: 14 }}>{t.emoji}</Text>
-                  <Text style={{ color: active ? theme.accent : 'rgba(255,255,255,0.7)', fontSize: 13, fontWeight: '700' }}>
+                  <Text style={{ color: active ? theme.accent : theme.text, fontSize: 13, fontWeight: '700' }}>
                     {t.label}
                   </Text>
                 </Pressable>
@@ -335,7 +335,7 @@ export const DangerMode: React.FC<Props> = ({ isOpen, onClose }) => {
           </View>
 
           {/* Contextual tactics */}
-          <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 11, fontWeight: '800', letterSpacing: 2, marginBottom: 10 }}>
+          <Text style={{ color: theme.muted, fontSize: 11, fontWeight: '800', letterSpacing: 2, marginBottom: 10 }}>
             {triggers.length > 0 ? 'TACTICS FOR THIS MOMENT' : 'YOUR BEST TACTICS'}
           </Text>
           {rankedTactics.map((tactic) => {
@@ -350,9 +350,9 @@ export const DangerMode: React.FC<Props> = ({ isOpen, onClose }) => {
                   from={{ opacity: 0, translateY: 8 }}
                   animate={{ opacity: 1, translateY: 0 }}
                   style={{
-                    backgroundColor: isCompleted ? 'rgba(30,138,74,0.12)' : 'rgba(255,255,255,0.04)',
+                    backgroundColor: isCompleted ? `${theme.success}20` : theme.surface2,
                     borderWidth: 1,
-                    borderColor: isCompleted ? 'rgba(30,138,74,0.5)' : 'rgba(255,255,255,0.1)',
+                    borderColor: isCompleted ? theme.success : theme.hairline,
                     borderRadius: 16,
                     padding: 14,
                     marginBottom: 10,
@@ -374,14 +374,14 @@ export const DangerMode: React.FC<Props> = ({ isOpen, onClose }) => {
                     </View>
                     <View style={{ flex: 1 }}>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                        <Text style={{ color: '#ffffff', fontWeight: '800', fontSize: 15, flex: 1 }}>{tactic.title}</Text>
-                        <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11 }}>{tactic.duration}</Text>
+                        <Text style={{ color: theme.text, fontWeight: '800', fontSize: 15, flex: 1 }}>{tactic.title}</Text>
+                        <Text style={{ color: theme.textDim, fontSize: 11 }}>{tactic.duration}</Text>
                       </View>
-                      <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13, lineHeight: 18, marginTop: 4 }}>
+                      <Text style={{ color: theme.muted, fontSize: 13, lineHeight: 18, marginTop: 4 }}>
                         {tactic.desc}
                       </Text>
                       {eff && eff.timesUsed > 0 && (
-                        <Text style={{ color: 'rgba(255,255,255,0.35)', fontSize: 10, marginTop: 4 }}>
+                        <Text style={{ color: theme.textDim, fontSize: 10, marginTop: 4 }}>
                           Worked {eff.timesWorked}/{eff.timesUsed} times for you
                         </Text>
                       )}
@@ -449,12 +449,12 @@ export const DangerMode: React.FC<Props> = ({ isOpen, onClose }) => {
               <Phone size={18} color="#E74C3C" />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={{ color: '#ffffff', fontWeight: '800', fontSize: 15 }}>Call someone now</Text>
-              <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12, marginTop: 2 }}>
+              <Text style={{ color: theme.text, fontWeight: '800', fontSize: 15 }}>Call someone now</Text>
+              <Text style={{ color: theme.muted, fontSize: 12, marginTop: 2 }}>
                 A friend, family member, or partner. Say it out loud.
               </Text>
             </View>
-            <ChevronRight size={16} color="rgba(255,255,255,0.3)" />
+            <ChevronRight size={16} color={theme.muted} />
           </Pressable>
 
           {/* I got through it */}
@@ -463,9 +463,9 @@ export const DangerMode: React.FC<Props> = ({ isOpen, onClose }) => {
               from={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               style={{
-                backgroundColor: 'rgba(30,138,74,0.15)',
+                backgroundColor: `${theme.success}20`,
                 borderWidth: 1,
-                borderColor: 'rgba(30,138,74,0.5)',
+                borderColor: theme.success,
                 borderRadius: 16,
                 padding: 20,
                 alignItems: 'center',
@@ -473,10 +473,10 @@ export const DangerMode: React.FC<Props> = ({ isOpen, onClose }) => {
               }}
             >
               <Heart size={28} color={theme.success} />
-              <Text style={{ color: '#ffffff', fontWeight: '900', fontSize: 18, marginTop: 10 }}>
+              <Text style={{ color: theme.text, fontWeight: '900', fontSize: 18, marginTop: 10 }}>
                 You stayed standing.
               </Text>
-              <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13, textAlign: 'center', marginTop: 6, lineHeight: 18 }}>
+              <Text style={{ color: theme.muted, fontSize: 13, textAlign: 'center', marginTop: 6, lineHeight: 18 }}>
                 This close call was logged. The pattern engine noticed.{'\n'}That took discipline.
               </Text>
               <Pressable
