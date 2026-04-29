@@ -21,6 +21,7 @@ import { PatternInsightsScreen } from '../screens/PatternInsightsScreen';
 import { AiCoachConfigScreen } from '../screens/AiCoachConfigScreen';
 import { TacticsSettingsScreen } from '../screens/TacticsSettingsScreen';
 
+import { CoachStyleScreen } from '../screens/CoachStyleScreen';
 import { CommunityHubScreen } from '../screens/CommunityHubScreen';
 import { CommunitySetupScreen } from '../screens/CommunitySetupScreen';
 import { CommunitySettingsScreen } from '../screens/CommunitySettingsScreen';
@@ -37,6 +38,7 @@ type Overlay =
   | null
   | 'reminders' | 'mantras' | 'rituals' | 'data' | 'personalization'
   | 'why' | 'watchlist' | 'insights' | 'aiconfig' | 'tactics' | 'learn'
+  | 'coach-style'
   | 'community' | 'community-setup' | 'community-settings' | 'auth'
   | 'partner' | 'leaderboard' | 'forums' | 'forum-thread' | 'forum-compose';
 
@@ -69,6 +71,7 @@ export const Navigator: React.FC = () => {
       case 'aiconfig': return <AiCoachConfigScreen onBack={close} />;
       case 'tactics': return <TacticsSettingsScreen onBack={close} />;
       case 'learn': return <Learn onBack={close} />;
+      case 'coach-style': return <CoachStyleScreen onBack={close} />;
 
       case 'community':
         return <CommunityHubScreen
@@ -147,6 +150,7 @@ export const Navigator: React.FC = () => {
             onNavigateToTactics={() => open('tactics')}
             onNavigateToLearn={() => open('learn')}
             onNavigateToCommunity={() => open('community')}
+            onNavigateToCoachStyle={() => open('coach-style')}
           />
         );
       default: return <Home />;

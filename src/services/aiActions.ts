@@ -7,6 +7,8 @@ import type { AiConfig } from './aiService';
 import { callAI, callAIJson, type CallResult } from './aiService';
 import type {
   PersonalityProfile,
+  CoachStylePrefs,
+  TacticEffectivenessEntry,
   FallEvent,
   CloseCallEvent,
   CheckInEvent,
@@ -109,7 +111,89 @@ const RECOVERY_TOOLKIT = [
   '  GYE / Guard Your Eyes Handbook (the practical playbook for shmiras einayim).',
 ].join('\n');
 
-function basePreamble(profile: PersonalityProfile): string {
+function coachStyleDirective(
+  prefs: CoachStylePrefs | null | undefined,
+  effectiveness: Record<string, TacticEffectivenessEntry> | null | undefined,
+): string {
+  if (!prefs) return '';
+
+  const lines: string[] = ['', 'PERSONALIZATION — CRITICAL: follow these instructions exactly.'];
+
+  if (prefs.coachingApproach) {
+    const desc: Record<string, string> = {
+      'drill-sergeant': 'Be demanding, direct, and hold no punches. Push back. No excuses accepted.',
+      'warm-mentor': 'Be warm, compassionate, and encouraging. Believe in him even when he doesn\'t.',
+      'accountability': 'Always bring it back to his vow, his commitments, and what he said he would do.',
+      'clinical': 'Use CBT/ACT framing. Be analytical. Skip inspiration, stick to techniques and data.',
+      'spiritual': 'Ground every response in Torah, mussar, or chassidus. This is his avodah.',
+      'socratic': 'Ask questions more than you answer. Help him arrive at the insight himself.',
+    };
+    lines.push(`Coaching approach: ${prefs.coachingApproach}. ${desc[prefs.coachingApproach] ?? ''}`);
+  }
+
+  if (prefs.goHard) {
+    lines.push('GO HARD: User explicitly requested you do NOT go easy on him. Push back, challenge, demand more. This is what he wants.');
+  }
+
+  if (prefs.mantraStyles.length > 0) {
+    const styleDesc: Record<string, string> = {
+      warrior: 'bold, masculine, fighter — "I am a lion, not a victim"',
+      torah: 'Hebrew/Torah-sourced — "Eizehu gibor? Hakovesh et yitzro"',
+      clinical: 'neuroscience-grounded — "Urges peak in 20 min and pass"',
+      compassionate: 'warm, gentle — "You are not your urges"',
+      'short-punch': 'under 5 words, punchy — "Not today."',
+      reflective: 'contemplative, meaningful — "Every breath is a choice"',
+    };
+    const styleLabels = prefs.mantraStyles.map((s) => styleDesc[s] ?? s).join('; ');
+    lines.push(`Mantra style — when generating mantras, write them in these styles: ${styleLabels}`);
+  }
+
+  if (prefs.likedMantraTexts.length > 0) {
+    lines.push(`Mantras that resonated with this user (write NEW mantras in a similar vein):\n${prefs.likedMantraTexts.slice(-5).map((m) => `  - "${m}"`).join('\n')}`);
+  }
+
+  if (prefs.dislikedMantraTexts.length > 0) {
+    lines.push(`Mantras that did NOT resonate (avoid this style completely):\n${prefs.dislikedMantraTexts.slice(-3).map((m) => `  - "${m}"`).join('\n')}`);
+  }
+
+  if (prefs.tacticPreferences.length > 0) {
+    lines.push(`Tactic categories that work for this user (lead with these): ${prefs.tacticPreferences.join(', ')}`);
+  }
+
+  if (prefs.firstMoveWhenUrgeHits) {
+    lines.push(`Emergency first move: ${prefs.firstMoveWhenUrgeHits} — always suggest this category FIRST in crisis.`);
+  }
+
+  if (prefs.preferredDuration) {
+    const desc: Record<string, string> = {
+      instant: '~30 seconds',
+      '2min': 'under 2 minutes',
+      '5min': 'under 5 minutes',
+      '10min+': 'longer sessions ok',
+    };
+    lines.push(`Preferred tactic length: ${desc[prefs.preferredDuration] ?? prefs.preferredDuration}`);
+  }
+
+  // Top effective tactics from tracked history
+  if (effectiveness) {
+    const topTactics = Object.entries(effectiveness)
+      .filter(([, e]) => e.timesUsed >= 2)
+      .sort(([, a], [, b]) => (b.timesWorked / b.timesUsed) - (a.timesWorked / a.timesUsed))
+      .slice(0, 4)
+      .map(([id, e]) => `${id} (worked ${e.timesWorked}/${e.timesUsed} times)`);
+    if (topTactics.length > 0) {
+      lines.push(`Most effective tactics for this user (reference and suggest these):\n${topTactics.map((t) => `  - ${t}`).join('\n')}`);
+    }
+  }
+
+  return lines.join('\n');
+}
+
+function basePreamble(
+  profile: PersonalityProfile,
+  stylePrefs?: CoachStylePrefs | null,
+  effectiveness?: Record<string, TacticEffectivenessEntry> | null,
+): string {
   return [
     'You are Guard / Gibor KeAri — a private, Torah-grounded recovery coach for a',
     'Jewish man working to break free from compulsive sexual / pornography behavior.',
@@ -119,6 +203,7 @@ function basePreamble(profile: PersonalityProfile): string {
     RECOVERY_TOOLKIT,
     '',
     SEFARIA_RULE,
+    coachStyleDirective(stylePrefs, effectiveness),
     '',
     'Be concrete, short, and identity-forming. Speak to the gibor he is becoming,',
     'not the falls he\'s had. Never moralize. Never shame. Never repeat sensitive',
@@ -142,6 +227,8 @@ export interface CoachContext {
   recentFalls7d: number;
   recentCloseCalls7d: number;
   identityStatement?: string | null;
+  stylePrefs?: CoachStylePrefs | null;
+  tacticEffectiveness?: Record<string, TacticEffectivenessEntry> | null;
 }
 
 export interface CoachReplyEvent {
@@ -170,7 +257,7 @@ export async function generateCoachReply(
   const registry = buildToolRegistry();
 
   const baseSystem = [
-    basePreamble(profile),
+    basePreamble(profile, context.stylePrefs, context.tacticEffectiveness),
     '',
     'LIVE CONTEXT (refreshed every turn):',
     renderLiveSnapshot(),
@@ -245,9 +332,10 @@ export async function generateMantras(
   ai: AiConfig,
   profile: PersonalityProfile,
   seed?: string,
+  stylePrefs?: CoachStylePrefs | null,
 ): Promise<CallResult<MantraSuggestion[]>> {
   const system = [
-    basePreamble(profile),
+    basePreamble(profile, stylePrefs),
     '',
     'Generate 5 short, first-person, identity-forming mantras for this user.',
     'Each under 120 characters. Present tense. No hedging.',
@@ -287,9 +375,11 @@ export async function suggestTactics(
   ai: AiConfig,
   profile: PersonalityProfile,
   recentTriggerSummary: string,
+  stylePrefs?: CoachStylePrefs | null,
+  effectiveness?: Record<string, TacticEffectivenessEntry> | null,
 ): Promise<CallResult<TacticSuggestion[]>> {
   const system = [
-    basePreamble(profile),
+    basePreamble(profile, stylePrefs, effectiveness),
     '',
     'Design 5 custom tactics the user can run in under 3 minutes the next time an urge hits.',
     'Each tactic must be physically or mentally concrete — no platitudes.',

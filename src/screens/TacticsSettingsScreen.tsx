@@ -19,6 +19,8 @@ import {
   Phone,
   Users,
   Heart,
+  ThumbsUp,
+  ThumbsDown,
 } from 'lucide-react-native';
 import { Screen } from '../components/Screen';
 import { useTheme } from '../constants/theme';
@@ -80,6 +82,9 @@ export const TacticsSettingsScreen: React.FC<Props> = ({ onBack }) => {
     addCustomTactic,
     removeCustomTactic,
     personalityProfile,
+    coachStylePrefs,
+    tacticEffectiveness,
+    rateTactic,
     fallEvents,
     closeCallEvents,
     checkInEvents,
@@ -128,7 +133,7 @@ export const TacticsSettingsScreen: React.FC<Props> = ({ onBack }) => {
     setLoading(true);
     setSuggestions([]);
     const summary = summarizeRecentTriggers(fallEvents, closeCallEvents, checkInEvents);
-    const res = await suggestTactics(aiCfg, personalityProfile, summary);
+    const res = await suggestTactics(aiCfg, personalityProfile, summary, coachStylePrefs, tacticEffectiveness);
     setLoading(false);
     if (!res.ok) {
       setError(res.error);
@@ -206,11 +211,22 @@ export const TacticsSettingsScreen: React.FC<Props> = ({ onBack }) => {
             </View>
           )}
         </View>
-        <Text style={{ color: theme.muted, fontSize: 13, lineHeight: 18, marginBottom: 10 }}>
+        <Text style={{ color: theme.muted, fontSize: 13, lineHeight: 18, marginBottom: 6 }}>
           {t.desc}
           {t.timeNeeded ? `  ·  ${t.timeNeeded}` : ''}
         </Text>
-        <View style={{ flexDirection: 'row', gap: 8 }}>
+        {/* Effectiveness display */}
+        {(() => {
+          const eff = tacticEffectiveness[t.id];
+          if (!eff || eff.timesUsed === 0) return null;
+          const pct = Math.round((eff.timesWorked / eff.timesUsed) * 100);
+          return (
+            <Text style={{ color: theme.muted, fontSize: 10, marginBottom: 6 }}>
+              Worked {eff.timesWorked}/{eff.timesUsed} times ({pct}% effective for you)
+            </Text>
+          );
+        })()}
+        <View style={{ flexDirection: 'row', gap: 6, marginBottom: 2 }}>
           <Pressable
             onPress={() => toggleTacticToToolkit(t.id)}
             style={{
@@ -242,11 +258,45 @@ export const TacticsSettingsScreen: React.FC<Props> = ({ onBack }) => {
               {inToolkit ? 'IN TOOLKIT' : 'ADD TO TOOLKIT'}
             </Text>
           </Pressable>
+          {/* Rate effectiveness */}
+          <Pressable
+            onPress={() => rateTactic(t.id, true)}
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: 10,
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderWidth: 1,
+              borderColor: theme.hairline,
+              backgroundColor: 'transparent',
+            }}
+            accessibilityLabel="This worked"
+          >
+            <ThumbsUp size={13} color={theme.success} />
+          </Pressable>
+          <Pressable
+            onPress={() => rateTactic(t.id, false)}
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: 10,
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderWidth: 1,
+              borderColor: theme.hairline,
+              backgroundColor: 'transparent',
+            }}
+            accessibilityLabel="Didn't work"
+          >
+            <ThumbsDown size={13} color={theme.muted} />
+          </Pressable>
           {t.onDelete && (
             <Pressable
               onPress={t.onDelete}
               style={{
-                paddingHorizontal: 12,
+                width: 36,
+                height: 36,
                 borderRadius: 10,
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -254,7 +304,7 @@ export const TacticsSettingsScreen: React.FC<Props> = ({ onBack }) => {
                 borderColor: theme.hairline,
               }}
             >
-              <Trash2 size={14} color={theme.danger} />
+              <Trash2 size={13} color={theme.danger} />
             </Pressable>
           )}
         </View>

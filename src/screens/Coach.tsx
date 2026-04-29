@@ -42,6 +42,8 @@ export const Coach: React.FC<Props> = ({ onNavigateToAiConfig }) => {
     aiCustomEndpoint,
     coachMessages,
     coachSummary,
+    coachStylePrefs,
+    tacticEffectiveness,
     appendCoachMessage,
     clearCoachMessages,
   } = useStore();
@@ -141,6 +143,8 @@ export const Coach: React.FC<Props> = ({ onNavigateToAiConfig }) => {
         recentFalls7d: countRecent(fallEvents, 7),
         recentCloseCalls7d: countRecent(closeCallEvents, 7),
         identityStatement,
+        stylePrefs: coachStylePrefs,
+        tacticEffectiveness,
       },
       history,
       trimmed,

@@ -23,6 +23,7 @@ import {
   Users,
   MessageCircle,
   Bug,
+  Sparkles,
 } from 'lucide-react-native';
 import { Screen } from '../components/Screen';
 import { Avatar } from '../components/Avatar';
@@ -45,6 +46,7 @@ interface Props {
   onNavigateToTactics: () => void;
   onNavigateToLearn: () => void;
   onNavigateToCommunity: () => void;
+  onNavigateToCoachStyle: () => void;
 }
 
 const BADGES: { day: number; label: string }[] = [
@@ -70,6 +72,7 @@ export const Profile: React.FC<Props> = ({
   onNavigateToTactics,
   onNavigateToLearn,
   onNavigateToCommunity,
+  onNavigateToCoachStyle,
 }) => {
   const {
     displayName,
@@ -261,6 +264,7 @@ export const Profile: React.FC<Props> = ({
       <Row icon={BookOpen} label="Learn (videos, podcasts, books)" onPress={onNavigateToLearn} />
       <Row icon={Users} label="Community (partner, forums, leaderboard)" onPress={onNavigateToCommunity} />
       <Row icon={Bot} label="AI coach (bring your own key)" onPress={onNavigateToAiConfig} />
+      <Row icon={Sparkles} label="Coach style (how the AI talks to you)" onPress={onNavigateToCoachStyle} />
       <Row icon={Sliders} label="Personalization (12 axes)" onPress={onNavigateToPersonalization} />
       <Row icon={Bell} label="Reminders" onPress={onNavigateToReminders} />
       <Row icon={BookOpen} label="Mantras" onPress={onNavigateToMantras} />

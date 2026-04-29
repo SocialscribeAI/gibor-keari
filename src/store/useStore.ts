@@ -88,6 +88,55 @@ export type PrivacyLevel =
 
 export type Language = 'en' | 'he' | 'yi' | 'es' | 'fr' | 'custom' | null;
 
+// =============================================================================
+// TYPES — coach style learning (how the AI should talk to THIS specific user)
+// =============================================================================
+
+export type MantraStyle =
+  | 'warrior'        // bold, masculine, fighter mentality
+  | 'torah'          // Torah/Hebrew sources, Jewish depth
+  | 'clinical'       // neuroscience facts, no fluff
+  | 'compassionate'  // warm, gentle, non-shaming
+  | 'short-punch'    // 5 words or fewer, punchy
+  | 'reflective';    // slower, contemplative, meaningful
+
+export type TacticPreference =
+  | 'physical'       // cold shower, pushups, walk
+  | 'cognitive'      // reframe, journal, rational self-talk
+  | 'social'         // call someone, text partner
+  | 'spiritual'      // daven, Torah, Shema, Tehillim
+  | 'environmental'  // leave the room, phone in drawer
+  | 'breathwork';    // breathing, body scan, urge surfing
+
+export type CoachingApproach =
+  | 'drill-sergeant'  // harsh, demanding, "get up now"
+  | 'warm-mentor'     // compassionate, believing in you
+  | 'accountability'  // focused on your commitments and vow
+  | 'clinical'        // CBT/ACT lens, analytical
+  | 'spiritual'       // Torah wisdom, avodah, elevation
+  | 'socratic';       // asks questions, draws out answers
+
+export type TacticDuration = 'instant' | '2min' | '5min' | '10min+';
+
+export interface CoachStylePrefs {
+  coachingApproach: CoachingApproach | null;
+  mantraStyles: MantraStyle[];
+  tacticPreferences: TacticPreference[];
+  preferredDuration: TacticDuration | null;
+  goHard: boolean;
+  firstMoveWhenUrgeHits: TacticPreference | null;
+  likedMantraTexts: string[];
+  dislikedMantraTexts: string[];
+  likedTacticIds: string[];
+  dislikedTacticIds: string[];
+}
+
+export interface TacticEffectivenessEntry {
+  timesUsed: number;
+  timesWorked: number;
+  contexts: string[];
+}
+
 export interface PersonalityProfile {
   // 1. Tone
   tone: Tone;
@@ -333,6 +382,19 @@ export interface AiDangerAnalysis {
 // DEFAULTS
 // =============================================================================
 
+const DEFAULT_COACH_STYLE: CoachStylePrefs = {
+  coachingApproach: null,
+  mantraStyles: [],
+  tacticPreferences: [],
+  preferredDuration: null,
+  goHard: false,
+  firstMoveWhenUrgeHits: null,
+  likedMantraTexts: [],
+  dislikedMantraTexts: [],
+  likedTacticIds: [],
+  dislikedTacticIds: [],
+};
+
 const DEFAULT_PROFILE: PersonalityProfile = {
   tone: null,
   religiousLevel: null,
@@ -459,6 +521,10 @@ interface GuardState {
   coachMessages: CoachMessage[];
   coachSummary: string | null; // rolling AI-generated summary of older turns
 
+  // Coach style learning — how the AI should talk to THIS specific user
+  coachStylePrefs: CoachStylePrefs;
+  tacticEffectiveness: Record<string, TacticEffectivenessEntry>;
+
   // =========================================================================
   // ACTIONS
   // =========================================================================
@@ -504,6 +570,10 @@ interface GuardState {
   appendCoachMessage: (msg: Omit<CoachMessage, 'id' | 'timestamp'>) => void;
   clearCoachMessages: () => void;
   setCoachSummary: (summary: string | null) => void;
+  setCoachStylePrefs: (patch: Partial<CoachStylePrefs>) => void;
+  rateTactic: (id: string, worked: boolean, context?: string) => void;
+  likeMantra: (text: string) => void;
+  dislikeMantra: (text: string) => void;
   regenerateIdentity: () => void;
   resetData: () => void;
 
@@ -627,6 +697,9 @@ export const useStore = create<GuardState>()(
 
       coachMessages: [],
       coachSummary: null,
+
+      coachStylePrefs: { ...DEFAULT_COACH_STYLE },
+      tacticEffectiveness: {},
 
       // ---------------------- Actions ----------------------
 
@@ -899,6 +972,50 @@ export const useStore = create<GuardState>()(
 
       setCoachSummary: (summary) => set({ coachSummary: summary }),
 
+      setCoachStylePrefs: (patch) => {
+        const { coachStylePrefs } = get();
+        set({ coachStylePrefs: { ...coachStylePrefs, ...patch } });
+      },
+
+      rateTactic: (id, worked, context) => {
+        const { tacticEffectiveness } = get();
+        const existing = tacticEffectiveness[id] ?? { timesUsed: 0, timesWorked: 0, contexts: [] };
+        set({
+          tacticEffectiveness: {
+            ...tacticEffectiveness,
+            [id]: {
+              timesUsed: existing.timesUsed + 1,
+              timesWorked: existing.timesWorked + (worked ? 1 : 0),
+              contexts: context ? [...existing.contexts.slice(-9), context] : existing.contexts,
+            },
+          },
+        });
+      },
+
+      likeMantra: (text) => {
+        const { coachStylePrefs } = get();
+        if (coachStylePrefs.likedMantraTexts.includes(text)) return;
+        set({
+          coachStylePrefs: {
+            ...coachStylePrefs,
+            likedMantraTexts: [...coachStylePrefs.likedMantraTexts.slice(-19), text],
+            dislikedMantraTexts: coachStylePrefs.dislikedMantraTexts.filter((t) => t !== text),
+          },
+        });
+      },
+
+      dislikeMantra: (text) => {
+        const { coachStylePrefs } = get();
+        if (coachStylePrefs.dislikedMantraTexts.includes(text)) return;
+        set({
+          coachStylePrefs: {
+            ...coachStylePrefs,
+            dislikedMantraTexts: [...coachStylePrefs.dislikedMantraTexts.slice(-19), text],
+            likedMantraTexts: coachStylePrefs.likedMantraTexts.filter((t) => t !== text),
+          },
+        });
+      },
+
       regenerateIdentity: () => {
         set({
           displayName: `Ari_${Math.floor(1000 + Math.random() * 8999)}`,
@@ -1153,13 +1270,15 @@ export const useStore = create<GuardState>()(
           privacyPromiseAcknowledged: false,
           coachMessages: [],
           coachSummary: null,
+          coachStylePrefs: { ...DEFAULT_COACH_STYLE },
+          tacticEffectiveness: {},
         });
       },
     }),
     {
       name: 'guard-user-profile',
       storage: createJSONStorage(() => AsyncStorage),
-      version: 7,
+      version: 8,
       // Migrate from v1 (4-axis profile) to v2 (12-axis profile + new fields).
       migrate: (persistedState: unknown, version: number) => {
         if (!persistedState || typeof persistedState !== 'object') return persistedState;
@@ -1219,6 +1338,10 @@ export const useStore = create<GuardState>()(
           // Initialise coach memory.
           s.coachMessages = s.coachMessages ?? [];
           s.coachSummary = s.coachSummary ?? null;
+        }
+        if (version < 8) {
+          s.coachStylePrefs = s.coachStylePrefs ?? { ...DEFAULT_COACH_STYLE };
+          s.tacticEffectiveness = s.tacticEffectiveness ?? {};
         }
         return s;
       },

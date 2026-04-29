@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { View, Text, Pressable, TextInput, Alert, ActivityIndicator, ScrollView } from 'react-native';
-import { ArrowLeft, Plus, Star, Trash2, Sparkles, Check, X } from 'lucide-react-native';
+import { ArrowLeft, Plus, Star, Trash2, Sparkles, Check, X, ThumbsUp, ThumbsDown } from 'lucide-react-native';
 import { Screen } from '../components/Screen';
 import { useStore } from '../store/useStore';
 import { useTheme } from '../constants/theme';
@@ -18,6 +18,9 @@ export const MantraBuilder: React.FC<Props> = ({ onBack }) => {
     addMantra,
     deleteMantra,
     setDailyMantra,
+    likeMantra,
+    dislikeMantra,
+    coachStylePrefs,
     personalityProfile,
     aiProvider,
     aiApiKey,
@@ -55,7 +58,7 @@ export const MantraBuilder: React.FC<Props> = ({ onBack }) => {
     setError(null);
     setLoading(true);
     setSuggestions([]);
-    const res = await generateMantras(aiCfg, personalityProfile, draft.trim() || undefined);
+    const res = await generateMantras(aiCfg, personalityProfile, draft.trim() || undefined, coachStylePrefs);
     setLoading(false);
     if (!res.ok) {
       setError(res.error);
@@ -218,6 +221,8 @@ export const MantraBuilder: React.FC<Props> = ({ onBack }) => {
       <Text className="text-guard-accent text-xs uppercase tracking-widest mb-3">Your Mantras</Text>
       {mantras.map((m, i) => {
         const isDaily = dailyMantraIndex === i;
+        const isLiked = coachStylePrefs.likedMantraTexts.includes(m);
+        const isDisliked = coachStylePrefs.dislikedMantraTexts.includes(m);
         return (
           <View
             key={`${i}-${m.slice(0, 8)}`}
@@ -243,11 +248,42 @@ export const MantraBuilder: React.FC<Props> = ({ onBack }) => {
                   {isDaily ? 'Daily' : 'Set daily'}
                 </Text>
               </Pressable>
+              {/* Resonance rating — feeds AI mantra generation */}
+              <Pressable
+                onPress={() => likeMantra(m)}
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 10,
+                  backgroundColor: isLiked ? 'rgba(30,138,74,0.2)' : 'rgba(255,255,255,0.05)',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderWidth: 1,
+                  borderColor: isLiked ? 'rgba(30,138,74,0.5)' : 'rgba(255,255,255,0.1)',
+                }}
+              >
+                <ThumbsUp size={13} color={isLiked ? '#1E8A4A' : 'rgba(255,255,255,0.4)'} />
+              </Pressable>
+              <Pressable
+                onPress={() => dislikeMantra(m)}
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 10,
+                  backgroundColor: isDisliked ? 'rgba(192,57,43,0.15)' : 'rgba(255,255,255,0.05)',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderWidth: 1,
+                  borderColor: isDisliked ? 'rgba(192,57,43,0.4)' : 'rgba(255,255,255,0.1)',
+                }}
+              >
+                <ThumbsDown size={13} color={isDisliked ? '#C0392B' : 'rgba(255,255,255,0.4)'} />
+              </Pressable>
               <Pressable
                 onPress={() => handleDelete(i)}
-                className="w-10 h-10 rounded-xl bg-guard-danger/10 items-center justify-center"
+                className="w-9 h-9 rounded-xl bg-guard-danger/10 items-center justify-center"
               >
-                <Trash2 size={14} color="#C0392B" />
+                <Trash2 size={13} color="#C0392B" />
               </Pressable>
             </View>
           </View>
