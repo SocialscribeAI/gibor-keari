@@ -20,6 +20,20 @@ module.exports = () => {
       scheme: 'giborkeari',
       assetBundlePatterns: ['**/*'],
 
+      // App icon — used by iOS directly and as Android fallback (when the
+      // device doesn't support adaptive icons). Square, 1024+, baked into
+      // the binary at build time. OTA cannot change icons.
+      icon: './assets/icon.png',
+
+      // Splash screen — shown while the JS bundle loads (before any React
+      // code runs). The transparent lion is centered on the navy bg, which
+      // matches guard-bg so the transition into the app feels seamless.
+      splash: {
+        image: './assets/splash.png',
+        resizeMode: 'contain',
+        backgroundColor: '#0F1120',
+      },
+
       // Omit runtimeVersion + EAS Update when running in Expo Go
       ...(!isExpoGo && {
         // ───────────────────────────────────────────────────────────────────
@@ -54,6 +68,14 @@ module.exports = () => {
       android: {
         package: 'com.guard.app',
         permissions: ['NOTIFICATIONS', 'VIBRATE', 'RECEIVE_BOOT_COMPLETED'],
+        // Adaptive icon — Android dynamically masks the foreground (the
+        // transparent lion) into circle / squircle / rounded-square based
+        // on launcher theme. backgroundColor fills behind it so the lion
+        // never floats over a wrong-color shape.
+        adaptiveIcon: {
+          foregroundImage: './assets/adaptive-icon.png',
+          backgroundColor: '#0F1120',
+        },
       },
       web: { bundler: 'metro' },
       plugins: [
