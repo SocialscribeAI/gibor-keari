@@ -22,7 +22,23 @@ module.exports = () => {
 
       // Omit runtimeVersion + EAS Update when running in Expo Go
       ...(!isExpoGo && {
-        runtimeVersion: { policy: 'appVersion' },
+        // ───────────────────────────────────────────────────────────────────
+        // runtimeVersion: 'fingerprint' policy
+        //
+        // Computes runtimeVersion as a hash of every native input (deps,
+        // plugins, native config). Adding a native module → fingerprint
+        // changes → runtimeVersion changes → old binaries STOP fetching the
+        // new OTA bundle automatically. This is the safety rail for the
+        // native↔JS compatibility boundary; without it (e.g. on the old
+        // 'appVersion' policy), forgetting to bump the version while adding
+        // a native module ships a JS bundle that crashes old APKs on launch.
+        //
+        // History: switched here on 2026-05-03 after expo-secure-store +
+        // expo-local-authentication + expo-crypto were added for PIN lock
+        // and the old 'appVersion' policy delivered the new bundle to old
+        // APKs that didn't have the native side compiled in.
+        // ───────────────────────────────────────────────────────────────────
+        runtimeVersion: { policy: 'fingerprint' },
         updates: {
           url: 'https://u.expo.dev/258cd0b4-3baf-4834-9e56-1459dd1fa95e',
           checkAutomatically: 'ON_LOAD',
