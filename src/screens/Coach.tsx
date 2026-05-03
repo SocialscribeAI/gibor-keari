@@ -10,7 +10,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { MotiView } from 'moti';
-import { Sparkles, Send, Moon, Lock } from 'lucide-react-native';
+import { Sparkles, Send } from 'lucide-react-native';
 import { Screen } from '../components/Screen';
 import { PrivacyNote } from '../components/PrivacyNote';
 import { useStore } from '../store/useStore';
@@ -32,7 +32,6 @@ export const Coach: React.FC<Props> = ({ onNavigateToAiConfig }) => {
   const theme = useTheme();
   const {
     personalityProfile,
-    lightsOutTime,
     currentStreak,
     longestStreak,
     fallEvents,
@@ -84,12 +83,6 @@ export const Coach: React.FC<Props> = ({ onNavigateToAiConfig }) => {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
-
-  const now = new Date();
-  const [lH, lM] = (lightsOutTime || '22:30').split(':').map(Number);
-  const afterLightsOut =
-    now.getHours() > lH || (now.getHours() === lH && now.getMinutes() >= lM);
-  const locked = !!lightsOutTime && afterLightsOut;
 
   useEffect(() => {
     scrollRef.current?.scrollToEnd({ animated: true });
@@ -170,26 +163,6 @@ export const Coach: React.FC<Props> = ({ onNavigateToAiConfig }) => {
       : res.data;
     appendCoachMessage({ role: 'assistant', text });
   };
-
-  if (locked) {
-    return (
-      <Screen>
-        <View className="flex-1 items-center justify-center">
-          <View className="w-20 h-20 rounded-3xl bg-guard-primary/10 border border-guard-primary/30 items-center justify-center mb-6">
-            <Moon size={40} color="#E8A020" />
-          </View>
-          <Text className="text-2xl font-black text-white mb-2">Lights Out</Text>
-          <Text className="text-white/60 text-center leading-6 max-w-xs">
-            Coach is locked until morning. Rest well. You've done enough for today.
-          </Text>
-          <View className="mt-6 flex-row items-center bg-guard-surface px-4 py-2 rounded-full">
-            <Lock size={12} color="#E8A020" />
-            <Text className="text-white/60 text-xs ml-2">Unlocks at 6:00 AM</Text>
-          </View>
-        </View>
-      </Screen>
-    );
-  }
 
   return (
     <KeyboardAvoidingView

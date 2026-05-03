@@ -382,7 +382,7 @@ export const PersonalizationScreen: React.FC<Props> = ({ onBack }) => {
                           <Text
                             className="text-xs font-bold"
                             style={{
-                              color: isCustomSelected ? theme.onAccent : 'rgba(255,255,255,0.75)',
+                              color: isCustomSelected ? theme.onAccent : theme.text,
                             }}
                           >
                             Custom

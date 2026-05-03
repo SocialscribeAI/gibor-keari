@@ -1,9 +1,8 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, Pressable, Alert } from 'react-native';
+import { View, Text, Pressable, Alert, Image } from 'react-native';
 import { MotiView } from 'moti';
 import { Delete, Fingerprint } from 'lucide-react-native';
 import { Screen } from '../components/Screen';
-import { LionMark } from '../components/LionMark';
 import { useStore } from '../store/useStore';
 import { lockService, PIN_MIN_LENGTH, PIN_MAX_LENGTH } from '../services/lockService';
 import { useTheme, BRAND } from '../constants/theme';
@@ -159,7 +158,11 @@ export const LockScreen: React.FC<Props> = ({ onUnlock }) => {
             borderColor: `${theme.accent}40`,
           }}
         >
-          <LionMark size={48} color={theme.accent} accentColor={theme.text} />
+          <Image
+            source={require('../../assets/adaptive-icon.png')}
+            style={{ width: 56, height: 56 }}
+            resizeMode="contain"
+          />
         </View>
         <Text className="text-xs uppercase tracking-[3px] mb-2" style={{ color: theme.accent }}>
           {BRAND.hebrew}

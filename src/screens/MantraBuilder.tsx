@@ -112,7 +112,7 @@ export const MantraBuilder: React.FC<Props> = ({ onBack }) => {
               draft.trim() ? 'bg-guard-accent' : 'bg-white/5'
             }`}
           >
-            <Plus size={16} color={draft.trim() ? '#0F1120' : 'rgba(255,255,255,0.3)'} />
+            <Plus size={16} color={draft.trim() ? theme.onAccent : theme.muted} />
             <Text className={`ml-2 font-black uppercase ${draft.trim() ? 'text-guard-on-accent' : 'text-white/30'}`}>
               Add
             </Text>
@@ -255,14 +255,14 @@ export const MantraBuilder: React.FC<Props> = ({ onBack }) => {
                   width: 36,
                   height: 36,
                   borderRadius: 10,
-                  backgroundColor: isLiked ? 'rgba(30,138,74,0.2)' : 'rgba(255,255,255,0.05)',
+                  backgroundColor: isLiked ? 'rgba(30,138,74,0.2)' : theme.surface,
                   alignItems: 'center',
                   justifyContent: 'center',
                   borderWidth: 1,
-                  borderColor: isLiked ? 'rgba(30,138,74,0.5)' : 'rgba(255,255,255,0.1)',
+                  borderColor: isLiked ? 'rgba(30,138,74,0.5)' : theme.hairline,
                 }}
               >
-                <ThumbsUp size={13} color={isLiked ? '#1E8A4A' : 'rgba(255,255,255,0.4)'} />
+                <ThumbsUp size={13} color={isLiked ? '#1E8A4A' : theme.muted} />
               </Pressable>
               <Pressable
                 onPress={() => dislikeMantra(m)}
@@ -270,14 +270,14 @@ export const MantraBuilder: React.FC<Props> = ({ onBack }) => {
                   width: 36,
                   height: 36,
                   borderRadius: 10,
-                  backgroundColor: isDisliked ? 'rgba(192,57,43,0.15)' : 'rgba(255,255,255,0.05)',
+                  backgroundColor: isDisliked ? 'rgba(192,57,43,0.15)' : theme.surface,
                   alignItems: 'center',
                   justifyContent: 'center',
                   borderWidth: 1,
-                  borderColor: isDisliked ? 'rgba(192,57,43,0.4)' : 'rgba(255,255,255,0.1)',
+                  borderColor: isDisliked ? 'rgba(192,57,43,0.4)' : theme.hairline,
                 }}
               >
-                <ThumbsDown size={13} color={isDisliked ? '#C0392B' : 'rgba(255,255,255,0.4)'} />
+                <ThumbsDown size={13} color={isDisliked ? '#C0392B' : theme.muted} />
               </Pressable>
               <Pressable
                 onPress={() => handleDelete(i)}

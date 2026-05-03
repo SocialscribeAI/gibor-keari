@@ -337,7 +337,7 @@ export const Profile: React.FC<Props> = ({
         <View
           className="w-10 h-10 rounded-xl items-center justify-center mr-3"
           style={{
-            backgroundColor: lockOn ? `${theme.accent}20` : 'rgba(255,255,255,0.05)',
+            backgroundColor: lockOn ? `${theme.accent}20` : theme.hairline,
           }}
         >
           <Lock size={18} color={lockOn ? theme.accent : theme.muted} />

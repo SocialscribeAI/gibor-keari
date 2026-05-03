@@ -214,7 +214,7 @@ export const PostFallProtocol: React.FC<Props> = ({ isOpen, onClose }) => {
           key={i}
           className="flex-1 h-1 rounded-full"
           style={{
-            backgroundColor: i <= step ? '#E8A020' : 'rgba(255,255,255,0.12)',
+            backgroundColor: i <= step ? theme.accent : theme.hairline,
           }}
         />
       ))}
@@ -234,13 +234,13 @@ export const PostFallProtocol: React.FC<Props> = ({ isOpen, onClose }) => {
       onPress={onPress}
       className="rounded-full px-3 py-2 mr-2 mb-2"
       style={{
-        backgroundColor: active ? '#E8A020' : 'rgba(255,255,255,0.06)',
+        backgroundColor: active ? theme.accent : theme.surface,
         borderWidth: 1,
-        borderColor: active ? '#E8A020' : 'rgba(255,255,255,0.12)',
+        borderColor: active ? theme.accent : theme.hairline,
       }}
     >
       <Text
-        style={{ color: active ? '#0F1120' : '#F0F2FF', fontWeight: active ? '700' : '500' }}
+        style={{ color: active ? theme.onAccent : theme.text, fontWeight: active ? '700' : '500' }}
       >
         {label}
       </Text>
@@ -686,9 +686,9 @@ export const PostFallProtocol: React.FC<Props> = ({ isOpen, onClose }) => {
               style={{ backgroundColor: theme.hairline }}
             >
               {step === 0 ? (
-                <X size={18} color="#F0F2FF" />
+                <X size={18} color={theme.text} />
               ) : (
-                <ArrowLeft size={18} color="#F0F2FF" />
+                <ArrowLeft size={18} color={theme.text} />
               )}
             </Pressable>
             <Text className="text-white/50 text-xs uppercase tracking-widest">
@@ -725,7 +725,7 @@ export const PostFallProtocol: React.FC<Props> = ({ isOpen, onClose }) => {
                 <Text className="text-guard-on-accent font-black mr-2">
                   {step === 0 ? "I'm ready" : 'Continue'}
                 </Text>
-                <ArrowRight size={16} color="#0F1120" />
+                <ArrowRight size={16} color={theme.onAccent} />
               </Pressable>
             </View>
           )}

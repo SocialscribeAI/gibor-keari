@@ -79,7 +79,7 @@ export const RiskyAppsSettings: React.FC<Props> = ({ onBack }) => {
             name.trim() && validateTime(start) && validateTime(end) ? 'bg-guard-accent' : 'bg-white/5'
           }`}
         >
-          <Plus size={16} color={name.trim() && validateTime(start) && validateTime(end) ? '#0F1120' : 'rgba(255,255,255,0.3)'} />
+          <Plus size={16} color={name.trim() && validateTime(start) && validateTime(end) ? theme.onAccent : theme.muted} />
           <Text
             className={`ml-2 font-black uppercase ${
               name.trim() && validateTime(start) && validateTime(end) ? 'text-guard-on-accent' : 'text-white/30'

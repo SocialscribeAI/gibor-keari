@@ -222,7 +222,7 @@ export const PanicButton: React.FC<Props> = ({ bottom = 90, right = 20 }) => {
               <Text className="text-white font-bold text-base">{o.label}</Text>
               <Text className="text-white/50 text-xs mt-0.5">{o.desc}</Text>
             </View>
-            <ArrowRight size={16} color="rgba(255,255,255,0.4)" />
+            <ArrowRight size={16} color={theme.muted} />
           </Pressable>
         ))}
       </View>
@@ -267,7 +267,7 @@ export const PanicButton: React.FC<Props> = ({ bottom = 90, right = 20 }) => {
             className="absolute top-12 right-6 w-10 h-10 rounded-full items-center justify-center z-10"
             style={{ backgroundColor: theme.surface }}
           >
-            <X size={18} color="#F0F2FF" />
+            <X size={18} color={theme.text} />
           </Pressable>
           {budget && (
             <Pressable

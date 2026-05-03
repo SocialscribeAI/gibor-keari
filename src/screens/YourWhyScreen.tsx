@@ -141,7 +141,7 @@ export const YourWhyScreen: React.FC<Props> = ({ onBack }) => {
                 "{identityStatement}"
               </Text>
               <View className="flex-row items-center mt-3">
-                <Edit3 size={12} color="rgba(255,255,255,0.5)" />
+                <Edit3 size={12} color={theme.muted} />
                 <Text className="text-white/50 text-xs ml-2 uppercase tracking-widest">Tap to edit</Text>
               </View>
             </Pressable>
@@ -174,7 +174,7 @@ export const YourWhyScreen: React.FC<Props> = ({ onBack }) => {
                 >
                   <Text className="text-white text-xs flex-1 leading-5">{c}</Text>
                   <Pressable onPress={() => removeCost(i)} hitSlop={8}>
-                    <X size={12} color="rgba(255,255,255,0.4)" />
+                    <X size={12} color={theme.muted} />
                   </Pressable>
                 </View>
               ))}
@@ -213,7 +213,7 @@ export const YourWhyScreen: React.FC<Props> = ({ onBack }) => {
                 >
                   <Text className="text-white text-xs flex-1 leading-5">{b}</Text>
                   <Pressable onPress={() => removeBenefit(i)} hitSlop={8}>
-                    <X size={12} color="rgba(255,255,255,0.4)" />
+                    <X size={12} color={theme.muted} />
                   </Pressable>
                 </View>
               ))}
@@ -310,7 +310,7 @@ const MilestoneRungCard: React.FC<RungProps> = ({ rung, currentStreak, isLast, o
         <View
           className="w-12 h-12 rounded-xl items-center justify-center mr-3"
           style={{
-            backgroundColor: reached ? 'rgba(232,160,32,0.25)' : 'rgba(255,255,255,0.05)',
+            backgroundColor: reached ? 'rgba(232,160,32,0.25)' : theme.hairline,
           }}
         >
           {reached ? (
@@ -332,7 +332,7 @@ const MilestoneRungCard: React.FC<RungProps> = ({ rung, currentStreak, isLast, o
           )}
         </View>
         <Pressable onPress={() => setEditing(!editing)} hitSlop={8}>
-          <Edit3 size={14} color="rgba(255,255,255,0.4)" />
+          <Edit3 size={14} color={theme.muted} />
         </Pressable>
       </View>
 
@@ -362,7 +362,7 @@ const MilestoneRungCard: React.FC<RungProps> = ({ rung, currentStreak, isLast, o
           from={{ opacity: 0, height: 0 }}
           animate={{ opacity: 1, height: 'auto' as any }}
           className="mt-4 pt-4"
-          style={{ borderTopWidth: 1, borderColor: 'rgba(255,255,255,0.08)' }}
+          style={{ borderTopWidth: 1, borderColor: theme.hairline }}
         >
           <Text className="text-white/50 text-[10px] uppercase tracking-widest mb-1">Label</Text>
           <TextInput

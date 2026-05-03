@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, ActivityIndicator } from 'react-native';
+import { View, Text, ActivityIndicator, Image } from 'react-native';
 import { MotiView, MotiText } from 'moti';
-import { LionMark } from './LionMark';
 import { BRAND, useTheme } from '../constants/theme';
 
 // expo-updates is imported defensively — in dev / Expo Go / older binaries
@@ -100,7 +99,11 @@ export const SplashScreen: React.FC<{ onComplete: () => void }> = ({ onComplete 
           transition={{ type: 'timing', duration: 900 }}
           className="mb-6"
         >
-          <LionMark size={120} color={theme.accent} accentColor={theme.text} />
+          <Image
+            source={require('../../assets/adaptive-icon.png')}
+            style={{ width: 140, height: 140 }}
+            resizeMode="contain"
+          />
         </MotiView>
 
         {/* Wordmark */}

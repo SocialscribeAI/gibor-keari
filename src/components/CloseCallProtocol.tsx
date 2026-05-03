@@ -170,7 +170,7 @@ export const CloseCallProtocol: React.FC<Props> = ({ isOpen, onClose }) => {
         style={{ backgroundColor: theme.accent }}
       >
         <Text className="text-guard-on-accent font-black mr-2">Said it</Text>
-        <ArrowRight size={16} color="#0F1120" />
+        <ArrowRight size={16} color={theme.onAccent} />
       </Pressable>
     </MotiView>
   );
@@ -207,7 +207,7 @@ export const CloseCallProtocol: React.FC<Props> = ({ isOpen, onClose }) => {
               <t.icon size={18} color="#E8A020" />
             </View>
             <Text className="text-white flex-1 font-semibold">{t.label}</Text>
-            <ArrowRight size={16} color="rgba(255,255,255,0.4)" />
+            <ArrowRight size={16} color={theme.muted} />
           </Pressable>
         ))}
       </View>
@@ -323,7 +323,7 @@ export const CloseCallProtocol: React.FC<Props> = ({ isOpen, onClose }) => {
             className="absolute top-12 right-6 w-10 h-10 rounded-full items-center justify-center z-10"
             style={{ backgroundColor: theme.surface }}
           >
-            <X size={18} color="#F0F2FF" />
+            <X size={18} color={theme.text} />
           </Pressable>
         )}
         <AnimatePresence exitBeforeEnter>
