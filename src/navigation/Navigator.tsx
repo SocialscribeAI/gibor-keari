@@ -22,6 +22,9 @@ import { AiCoachConfigScreen } from '../screens/AiCoachConfigScreen';
 import { TacticsSettingsScreen } from '../screens/TacticsSettingsScreen';
 
 import { CoachStyleScreen } from '../screens/CoachStyleScreen';
+import { CoachKnowledgeBaseScreen } from '../screens/CoachKnowledgeBaseScreen';
+import { ClinicalProfileScreen } from '../screens/ClinicalProfileScreen';
+import { PinSettingsScreen } from '../screens/PinSettingsScreen';
 import { CommunityHubScreen } from '../screens/CommunityHubScreen';
 import { CommunitySetupScreen } from '../screens/CommunitySetupScreen';
 import { CommunitySettingsScreen } from '../screens/CommunitySettingsScreen';
@@ -38,7 +41,7 @@ type Overlay =
   | null
   | 'reminders' | 'mantras' | 'rituals' | 'data' | 'personalization'
   | 'why' | 'watchlist' | 'insights' | 'aiconfig' | 'tactics' | 'learn'
-  | 'coach-style'
+  | 'coach-style' | 'clinical-profile' | 'coach-kb' | 'pin-settings'
   | 'community' | 'community-setup' | 'community-settings' | 'auth'
   | 'partner' | 'leaderboard' | 'forums' | 'forum-thread' | 'forum-compose';
 
@@ -72,6 +75,9 @@ export const Navigator: React.FC = () => {
       case 'tactics': return <TacticsSettingsScreen onBack={close} />;
       case 'learn': return <Learn onBack={close} />;
       case 'coach-style': return <CoachStyleScreen onBack={close} />;
+      case 'clinical-profile': return <ClinicalProfileScreen onBack={close} />;
+      case 'coach-kb': return <CoachKnowledgeBaseScreen onBack={close} />;
+      case 'pin-settings': return <PinSettingsScreen onBack={close} />;
 
       case 'community':
         return <CommunityHubScreen
@@ -151,6 +157,9 @@ export const Navigator: React.FC = () => {
             onNavigateToLearn={() => open('learn')}
             onNavigateToCommunity={() => open('community')}
             onNavigateToCoachStyle={() => open('coach-style')}
+            onNavigateToClinicalProfile={() => open('clinical-profile')}
+            onNavigateToCoachKnowledgeBase={() => open('coach-kb')}
+            onNavigateToPinSettings={() => open('pin-settings')}
           />
         );
       default: return <Home />;

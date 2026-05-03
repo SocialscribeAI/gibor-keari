@@ -11,6 +11,14 @@
 
 import { format } from 'date-fns';
 import { useStore } from '../store/useStore';
+import type {
+  ClinicalAssessment,
+  KbCategory,
+  KbImportance,
+  KnowledgeBaseEntry,
+  AssessmentSource,
+  AssessmentConfidence,
+} from '../store/useStore';
 import { useCommunityStore } from '../store/useCommunityStore';
 import { sendUrgeAlert, listMyPartnerships } from './community';
 
@@ -34,14 +42,27 @@ export interface ToolResult {
   output: string;
 }
 
+export type ToolKind = 'read' | 'auto-write' | 'consent-write';
+
 export interface ToolDef {
   name: string;
   description: string;
   /** Short JSON schema-ish hint shown in the prompt. */
   paramsHint: string;
-  /** true = safe read (no side effects). false = requires user consent first. */
+  /** true = safe read (no side effects). false = has side effects. */
   readOnly: boolean;
+  /**
+   * Optional explicit category. If absent, derived from `readOnly` (true→'read',
+   * false→'consent-write'). Use 'auto-write' for KB / assessment writes that
+   * don't need consent — they're transparent (user sees in About Me).
+   */
+  kind?: ToolKind;
   execute: (args: Record<string, unknown>) => Promise<string> | string;
+}
+
+export function toolKind(t: ToolDef): ToolKind {
+  if (t.kind) return t.kind;
+  return t.readOnly ? 'read' : 'consent-write';
 }
 
 // ---------------------------------------------------------------------------
@@ -304,6 +325,299 @@ export function buildToolRegistry(): Record<string, ToolDef> {
         return JSON.stringify({ text: match || daily });
       },
     },
+
+    // -----------------------------------------------------------------------
+    // Knowledge base + clinical assessment tools — these are how the coach
+    // becomes a real therapist. Read freely; auto-write tools update the
+    // therapist's chart silently (when inferenceMode is 'auto') and
+    // transparently (user sees + edits everything in About Me).
+    // -----------------------------------------------------------------------
+    {
+      name: 'kb_get_summary',
+      description:
+        'Quick summary of the therapist chart: currentAvodah, lastSessionFocus, openLoops, redFlags, and top non-archived entries by importance. Call at the start of every session.',
+      paramsHint: '{}',
+      readOnly: true,
+      execute: () => {
+        const s = getState();
+        const kb = s.coachKnowledgeBase;
+        const ranked = [...kb.entries]
+          .filter((e) => !e.archived)
+          .sort(rankByImportance)
+          .slice(0, 12)
+          .map((e) => ({
+            id: e.id,
+            category: e.category,
+            title: e.title,
+            content: e.content,
+            importance: e.importance,
+            source: e.source,
+            updatedAt: e.updatedAt,
+          }));
+        return JSON.stringify(
+          {
+            currentAvodah: kb.currentAvodah,
+            lastSessionFocus: kb.lastSessionFocus,
+            openLoops: kb.openLoops,
+            redFlags: kb.redFlags,
+            topEntries: ranked,
+            totalEntries: kb.entries.filter((e) => !e.archived).length,
+            inferenceMode: s.inferenceMode,
+          },
+          null,
+          2,
+        );
+      },
+    },
+    {
+      name: 'kb_get_notes',
+      description:
+        'Search/filter knowledge-base entries. Args: {category?: string, importance?: "low"|"medium"|"high"|"critical", includeArchived?: boolean, query?: string (substring match on title/content), limit?: number (default 20)}.',
+      paramsHint: '{"category":"event","limit":10}',
+      readOnly: true,
+      execute: (args) => {
+        const s = getState();
+        const cat = args.category ? String(args.category) : undefined;
+        const imp = args.importance ? String(args.importance) : undefined;
+        const includeArchived = Boolean(args.includeArchived);
+        const query = args.query ? String(args.query).toLowerCase() : '';
+        const limit = clampInt(args.limit, 1, 100, 20);
+        const filtered = s.coachKnowledgeBase.entries.filter((e) => {
+          if (!includeArchived && e.archived) return false;
+          if (cat && e.category !== cat) return false;
+          if (imp && e.importance !== imp) return false;
+          if (query && !(`${e.title}\n${e.content}`.toLowerCase().includes(query))) return false;
+          return true;
+        });
+        return JSON.stringify(
+          {
+            count: filtered.length,
+            entries: filtered.slice(0, limit).map((e) => ({
+              id: e.id,
+              category: e.category,
+              title: e.title,
+              content: e.content,
+              importance: e.importance,
+              source: e.source,
+              evidence: e.evidence,
+              archived: e.archived ?? false,
+              updatedAt: e.updatedAt,
+            })),
+          },
+          null,
+          2,
+        );
+      },
+    },
+    {
+      name: 'clinical_get_assessment',
+      description:
+        'Full clinical assessment of the user (Ramchal stage, dominant yesod, identity frame, distortions, bitachon baseline, HALT, primary reward, post-fall pattern, marriage/community status, primary framework, working hypothesis). Empty values mean "not yet observed."',
+      paramsHint: '{}',
+      readOnly: true,
+      execute: () => {
+        const s = getState();
+        // Strip empty fields to keep token count down — coach only sees what's set.
+        const ca = s.clinicalAssessment;
+        const out: Record<string, unknown> = {};
+        for (const key of Object.keys(ca) as (keyof ClinicalAssessment)[]) {
+          const f = ca[key];
+          if (f.value !== null && f.value !== undefined) {
+            out[key] = {
+              value: f.value,
+              source: f.source,
+              confidence: f.confidence,
+              evidence: f.evidence,
+            };
+          }
+        }
+        return JSON.stringify(out, null, 2);
+      },
+    },
+    {
+      name: 'kb_add_note',
+      description:
+        '[AUTO-WRITE] Save a note to the therapist chart. Categories: theme | event | pattern | commitment | identity-statement | relationship | breakthrough | concern | preference. Importance: low | medium | high | critical. Always include short evidence (a quote or signal). User sees and can edit/delete in About Me. No consent required when inferenceMode=auto; in confirm mode, ASK first.',
+      paramsHint:
+        '{"category":"identity-statement","title":"future-husband identity","content":"User said they want to become the husband their future wife deserves.","importance":"high","evidence":"\\"my future wife\\" — first message of session 4"}',
+      readOnly: false,
+      kind: 'auto-write',
+      execute: (args) => {
+        const s = getState();
+        const category = sanitizeKbCategory(args.category);
+        const importance = sanitizeKbImportance(args.importance);
+        const title = String(args.title ?? '').trim().slice(0, 120);
+        const content = String(args.content ?? '').trim().slice(0, 1500);
+        const evidence = args.evidence ? String(args.evidence).trim().slice(0, 500) : undefined;
+        if (!title || !content) {
+          return JSON.stringify({ ok: false, error: 'title and content required' });
+        }
+        // Soft-dedupe — if an existing non-archived entry has the same title in
+        // the same category, prefer to update it rather than spawn a duplicate.
+        const existing = s.coachKnowledgeBase.entries.find(
+          (e) => !e.archived && e.category === category && e.title === title,
+        );
+        if (existing) {
+          s.kbUpdateEntry(existing.id, { content, importance, evidence });
+          return JSON.stringify({ ok: true, id: existing.id, updated: true });
+        }
+        const id = s.kbAddEntry({
+          category,
+          title,
+          content,
+          importance,
+          source: 'coach-inferred',
+          evidence,
+        });
+        return JSON.stringify({ ok: true, id, created: true });
+      },
+    },
+    {
+      name: 'kb_update_note',
+      description:
+        '[AUTO-WRITE] Update an existing knowledge-base entry. Args: {id: string, title?, content?, importance?}.',
+      paramsHint: '{"id":"<entry-id>","content":"refined version","importance":"high"}',
+      readOnly: false,
+      kind: 'auto-write',
+      execute: (args) => {
+        const s = getState();
+        const id = String(args.id ?? '');
+        if (!id) return JSON.stringify({ ok: false, error: 'id required' });
+        if (!s.coachKnowledgeBase.entries.find((e) => e.id === id)) {
+          return JSON.stringify({ ok: false, error: 'entry not found' });
+        }
+        const patch: Partial<KnowledgeBaseEntry> = {};
+        if (typeof args.title === 'string') patch.title = args.title.trim().slice(0, 120);
+        if (typeof args.content === 'string') patch.content = args.content.trim().slice(0, 1500);
+        if (typeof args.importance === 'string') patch.importance = sanitizeKbImportance(args.importance);
+        s.kbUpdateEntry(id, patch);
+        return JSON.stringify({ ok: true });
+      },
+    },
+    {
+      name: 'kb_archive_note',
+      description:
+        '[AUTO-WRITE] Archive an entry that is no longer relevant (soft delete — user can still see it in About Me). Args: {id: string}.',
+      paramsHint: '{"id":"<entry-id>"}',
+      readOnly: false,
+      kind: 'auto-write',
+      execute: (args) => {
+        const s = getState();
+        const id = String(args.id ?? '');
+        if (!id) return JSON.stringify({ ok: false, error: 'id required' });
+        s.kbArchiveEntry(id);
+        return JSON.stringify({ ok: true });
+      },
+    },
+    {
+      name: 'kb_set_current_avodah',
+      description:
+        '[AUTO-WRITE] Set "what the user is working on right now" — one short line. Reset/replace this any time the focus shifts.',
+      paramsHint: '{"text":"Building bedtime ritual: phone in kitchen by 22:30"}',
+      readOnly: false,
+      kind: 'auto-write',
+      execute: (args) => {
+        const s = getState();
+        s.kbSetCurrentAvodah(String(args.text ?? '').slice(0, 200));
+        return JSON.stringify({ ok: true });
+      },
+    },
+    {
+      name: 'kb_set_session_focus',
+      description:
+        '[AUTO-WRITE] At the END of a coach session, save a one-line theme of what was discussed so the next session can open with continuity.',
+      paramsHint: '{"text":"Worked through Beinoni reframe — user resisted then opened up"}',
+      readOnly: false,
+      kind: 'auto-write',
+      execute: (args) => {
+        const s = getState();
+        s.kbSetSessionFocus(String(args.text ?? '').slice(0, 240));
+        return JSON.stringify({ ok: true });
+      },
+    },
+    {
+      name: 'kb_add_open_loop',
+      description:
+        '[AUTO-WRITE] Note something to follow up on next session. Short — one sentence each. Auto-deduped against existing loops.',
+      paramsHint: '{"text":"Ask how the conversation with mashpia went"}',
+      readOnly: false,
+      kind: 'auto-write',
+      execute: (args) => {
+        const s = getState();
+        s.kbAddOpenLoop(String(args.text ?? ''));
+        return JSON.stringify({ ok: true });
+      },
+    },
+    {
+      name: 'kb_resolve_open_loop',
+      description:
+        '[AUTO-WRITE] Mark an open loop resolved — pass the EXACT text of the loop to remove.',
+      paramsHint: '{"text":"Ask how the conversation with mashpia went"}',
+      readOnly: false,
+      kind: 'auto-write',
+      execute: (args) => {
+        const s = getState();
+        s.kbResolveOpenLoop(String(args.text ?? ''));
+        return JSON.stringify({ ok: true });
+      },
+    },
+    {
+      name: 'kb_add_red_flag',
+      description:
+        '[AUTO-WRITE] Note a pattern to watch for (chaser-effect risk, mood crash signal, isolation drift, etc.). Surfaces in your prompt every session until cleared.',
+      paramsHint: '{"text":"Days 2-5 after fall — user historically minimizes and chases"}',
+      readOnly: false,
+      kind: 'auto-write',
+      execute: (args) => {
+        const s = getState();
+        s.kbAddRedFlag(String(args.text ?? ''));
+        return JSON.stringify({ ok: true });
+      },
+    },
+    {
+      name: 'kb_clear_red_flag',
+      description: '[AUTO-WRITE] Mark a red flag resolved. Pass the EXACT text.',
+      paramsHint: '{"text":"Days 2-5 after fall — user historically minimizes and chases"}',
+      readOnly: false,
+      kind: 'auto-write',
+      execute: (args) => {
+        const s = getState();
+        s.kbClearRedFlag(String(args.text ?? ''));
+        return JSON.stringify({ ok: true });
+      },
+    },
+    {
+      name: 'clinical_update_assessment',
+      description:
+        '[AUTO-WRITE] Update one field of the clinical assessment based on what you observed. Fields: ramchalStage | dominantYesod | yesodPattern | identityFrame | activeDistortions | bitachonBaseline | haltSensitivity | primaryReward | postFallPattern | postFallChaserRisk | yearsStruggling | longestCleanStretch | previousAttempts | isMarried | spousalAwareness | hasFrumCommunity | hasMashpiaOrRav | isolationLevel | primaryGoal | motivationDeepReason | workingHypothesis | primaryFramework. confidence: low | medium | high. Always include evidence (1 short sentence). For high-stakes fields (isMarried, hasMashpiaOrRav, primaryFramework) start with confidence "medium" and let it climb as evidence accumulates.',
+      paramsHint:
+        '{"field":"identityFrame","value":"rasha-despair","confidence":"medium","evidence":"User said \\"I am a bad person\\" three times in this session"}',
+      readOnly: false,
+      kind: 'auto-write',
+      execute: (args) => {
+        const s = getState();
+        const field = String(args.field ?? '') as keyof ClinicalAssessment;
+        if (!isAssessmentField(field, s.clinicalAssessment)) {
+          return JSON.stringify({ ok: false, error: `unknown field: ${field}` });
+        }
+        const value = args.value as ClinicalAssessment[typeof field]['value'];
+        const confidence: AssessmentConfidence =
+          args.confidence === 'high' || args.confidence === 'low' ? args.confidence : 'medium';
+        const evidence = args.evidence ? String(args.evidence).slice(0, 500) : undefined;
+        const source: AssessmentSource =
+          args.source === 'user-stated' || args.source === 'pattern-detected' || args.source === 'event-derived'
+            ? args.source
+            : 'coach-inferred';
+        // The store action narrows the per-field type; the runtime shape matches.
+        s.updateAssessmentField(field, {
+          value,
+          confidence,
+          source,
+          evidence,
+        } as Partial<ClinicalAssessment[typeof field]> & { value: ClinicalAssessment[typeof field]['value'] });
+        return JSON.stringify({ ok: true, field });
+      },
+    },
   ];
 
   const registry: Record<string, ToolDef> = {};
@@ -317,35 +631,107 @@ function clampInt(v: unknown, min: number, max: number, def: number): number {
   return Math.max(min, Math.min(max, Math.round(n)));
 }
 
+const KB_CATEGORIES = new Set<KbCategory>([
+  'theme',
+  'event',
+  'pattern',
+  'commitment',
+  'identity-statement',
+  'relationship',
+  'breakthrough',
+  'concern',
+  'preference',
+]);
+
+const KB_IMPORTANCE_RANK: Record<KbImportance, number> = {
+  critical: 4,
+  high: 3,
+  medium: 2,
+  low: 1,
+};
+
+function sanitizeKbCategory(v: unknown): KbCategory {
+  const s = String(v ?? '').trim() as KbCategory;
+  return KB_CATEGORIES.has(s) ? s : 'theme';
+}
+
+function sanitizeKbImportance(v: unknown): KbImportance {
+  const s = String(v ?? '').trim();
+  if (s === 'critical' || s === 'high' || s === 'medium' || s === 'low') return s;
+  return 'medium';
+}
+
+function rankByImportance(a: KnowledgeBaseEntry, b: KnowledgeBaseEntry): number {
+  const diff = KB_IMPORTANCE_RANK[b.importance] - KB_IMPORTANCE_RANK[a.importance];
+  if (diff !== 0) return diff;
+  // tie-break: most recently updated first
+  return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+}
+
+function isAssessmentField(
+  field: string,
+  assessment: ClinicalAssessment,
+): field is keyof ClinicalAssessment {
+  return field in assessment;
+}
+
 // ---------------------------------------------------------------------------
 // Tool manifest — rendered into the system prompt so the model knows what's
 // available and how to call them.
 // ---------------------------------------------------------------------------
 
 export function renderToolManifest(registry: Record<string, ToolDef>): string {
+  const inferenceMode = useStore.getState().inferenceMode;
   const lines: string[] = [
     'TOOLS AVAILABLE',
     '',
-    'You have access to the user\'s full local database and to their accountability',
-    'partner (if paired). To call a tool, emit EXACTLY this on its own line:',
+    'You have access to the user\'s full local database, the therapist chart, and',
+    'the user\'s accountability partner (if paired). To call a tool, emit EXACTLY',
+    'this on its own line:',
     '',
     `${TOOL_OPEN}{"name":"<tool_name>","args":{...}}${TOOL_CLOSE}`,
     '',
-    'Rules:',
-    '- Read tools (get_*, pick_mantra_for_now) can be called freely.',
-    '- WRITE tools (log_close_call, add_watchlist_time, ping_partner) MUST be',
-    '  confirmed by the user first. Ask explicitly ("Want me to ping your partner?")',
-    '  and only emit the tool call on the next turn after they say yes.',
-    '- You may call multiple read tools in a single turn.',
-    '- After a tool block, you MAY continue talking to the user on the same turn.',
-    '- Never fabricate data — always call a tool to check.',
+    'Three categories of tools:',
+    '',
+    '1. READ tools (get_*, kb_get_*, clinical_get_*, pick_mantra_for_now) —',
+    '   call freely as needed. They have no side effects.',
+    '',
+    `2. AUTO-WRITE tools (kb_*, clinical_update_assessment) — these update your`,
+    `   therapist chart. Inference mode is currently: ${inferenceMode.toUpperCase()}.`,
+    inferenceMode === 'auto'
+      ? '   In AUTO mode, call these freely whenever you observe something worth noting.\n   The user sees every entry in About Me with a "coach picked up on this" tag\n   and can edit or delete anything. Be honest, be specific, cite evidence.'
+      : '   In CONFIRM mode, ASK the user before calling — e.g., "I noticed X — want me\n   to remember that?" — and only emit the call after they agree.',
+    '',
+    '3. CONSENT-WRITE tools (log_close_call, add_watchlist_time, ping_partner) —',
+    '   ALWAYS ask the user first ("Want me to ping your partner?") and only emit',
+    '   the call on a turn after explicit consent. These have real-world side',
+    '   effects (database events, partner alerts).',
+    '',
+    'General rules:',
+    '- Multiple read tools per turn is fine.',
+    '- After any tool block, you MAY continue talking to the user on the same turn.',
+    '- Never fabricate user data — always call a tool to check.',
+    '- For KB writes, write what you OBSERVED, not what you assumed. Distinguish',
+    '  what the user explicitly said (source: user-stated) from what you inferred',
+    '  (source: coach-inferred).',
     '',
     'TOOLS:',
   ];
-  for (const t of Object.values(registry)) {
-    const tag = t.readOnly ? '(read)' : '(WRITE — needs consent)';
-    lines.push(`- ${t.name} ${tag} — ${t.description}`);
-    lines.push(`  params: ${t.paramsHint}`);
+  // Group tools by kind for readability in the manifest.
+  const grouped: Record<ToolKind, ToolDef[]> = { read: [], 'auto-write': [], 'consent-write': [] };
+  for (const t of Object.values(registry)) grouped[toolKind(t)].push(t);
+  const labels: Record<ToolKind, string> = {
+    read: '— READ —',
+    'auto-write': '— AUTO-WRITE (silent in auto mode) —',
+    'consent-write': '— CONSENT-WRITE (ask first, ALWAYS) —',
+  };
+  for (const kind of ['read', 'auto-write', 'consent-write'] as ToolKind[]) {
+    if (!grouped[kind].length) continue;
+    lines.push('', labels[kind]);
+    for (const t of grouped[kind]) {
+      lines.push(`- ${t.name} — ${t.description}`);
+      lines.push(`  params: ${t.paramsHint}`);
+    }
   }
   return lines.join('\n');
 }

@@ -24,6 +24,8 @@ import {
   MessageCircle,
   Bug,
   Sparkles,
+  ClipboardList,
+  NotebookPen,
 } from 'lucide-react-native';
 import { Screen } from '../components/Screen';
 import { Avatar } from '../components/Avatar';
@@ -47,6 +49,9 @@ interface Props {
   onNavigateToLearn: () => void;
   onNavigateToCommunity: () => void;
   onNavigateToCoachStyle: () => void;
+  onNavigateToClinicalProfile: () => void;
+  onNavigateToCoachKnowledgeBase: () => void;
+  onNavigateToPinSettings: () => void;
 }
 
 const BADGES: { day: number; label: string }[] = [
@@ -73,6 +78,9 @@ export const Profile: React.FC<Props> = ({
   onNavigateToLearn,
   onNavigateToCommunity,
   onNavigateToCoachStyle,
+  onNavigateToClinicalProfile,
+  onNavigateToCoachKnowledgeBase,
+  onNavigateToPinSettings,
 }) => {
   const {
     displayName,
@@ -83,7 +91,19 @@ export const Profile: React.FC<Props> = ({
     resetData,
     checkInStreak,
     ritualStreak,
+    clinicalAssessment,
+    coachKnowledgeBase,
+    pinEnabled,
+    pinHashPresent,
   } = useStore();
+  const lockOn = pinEnabled && pinHashPresent;
+
+  // Quick stats for the "What Coach Knows" hub card.
+  const assessmentSetCount = Object.values(clinicalAssessment).filter(
+    (f) => f.value !== null && f.value !== undefined,
+  ).length;
+  const kbActiveCount = coachKnowledgeBase.entries.filter((e) => !e.archived).length;
+  const openLoopsCount = coachKnowledgeBase.openLoops.length;
   const { currentStreak, longestStreak, formattedStartDate, level } = useStreak();
   const theme = useTheme();
   const [renameOpen, setRenameOpen] = useState(false);
@@ -233,6 +253,59 @@ export const Profile: React.FC<Props> = ({
         </View>
       </View>
 
+      {/* About Me — coach's picture of you + the chart */}
+      <Text className="text-guard-accent text-xs uppercase tracking-widest mb-3">About me</Text>
+      <Pressable
+        onPress={onNavigateToCoachKnowledgeBase}
+        className="rounded-3xl p-5 mb-3"
+        style={{
+          backgroundColor: theme.surface,
+          borderWidth: 1,
+          borderColor: theme.accent + '60',
+        }}
+      >
+        <View className="flex-row items-center mb-2">
+          <NotebookPen size={16} color={theme.accent} />
+          <Text className="text-xs uppercase tracking-widest ml-2 font-black" style={{ color: theme.accent }}>
+            What coach knows
+          </Text>
+        </View>
+        <Text className="font-black text-lg mb-1" style={{ color: theme.text }}>
+          {kbActiveCount === 0
+            ? 'Nothing yet — coach starts learning as you talk.'
+            : `${kbActiveCount} note${kbActiveCount === 1 ? '' : 's'}${
+                openLoopsCount > 0 ? ` · ${openLoopsCount} open loop${openLoopsCount === 1 ? '' : 's'}` : ''
+              }`}
+        </Text>
+        <Text className="text-xs" style={{ color: theme.muted }}>
+          The therapist&apos;s chart — themes, events, breakthroughs. Yours to read, edit, or delete.
+        </Text>
+      </Pressable>
+      <Pressable
+        onPress={onNavigateToClinicalProfile}
+        className="rounded-3xl p-5 mb-6"
+        style={{
+          backgroundColor: theme.surface,
+          borderWidth: 1,
+          borderColor: theme.accent + '60',
+        }}
+      >
+        <View className="flex-row items-center mb-2">
+          <ClipboardList size={16} color={theme.accent} />
+          <Text className="text-xs uppercase tracking-widest ml-2 font-black" style={{ color: theme.accent }}>
+            Coach&apos;s picture of you
+          </Text>
+        </View>
+        <Text className="font-black text-lg mb-1" style={{ color: theme.text }}>
+          {assessmentSetCount === 0
+            ? 'Coach hasn’t formed a picture yet.'
+            : `${assessmentSetCount} field${assessmentSetCount === 1 ? '' : 's'} filled in`}
+        </Text>
+        <Text className="text-xs" style={{ color: theme.muted }}>
+          Ramchal stage, dominant yesod, identity frame, distortions, life context, working hypothesis. Edit anything that&apos;s wrong.
+        </Text>
+      </Pressable>
+
       <Text className="text-guard-accent text-xs uppercase tracking-widest mb-3">Settings</Text>
       <Pressable
         onPress={onNavigateToYourData}
@@ -253,6 +326,26 @@ export const Profile: React.FC<Props> = ({
           <Text className="text-white font-bold">Your Data · Privacy</Text>
           <Text className="text-white/60 text-xs mt-0.5">
             Everything stays on this phone. Export or delete anytime.
+          </Text>
+        </View>
+        <ChevronRight size={18} color={theme.textDim} />
+      </Pressable>
+      <Pressable
+        onPress={onNavigateToPinSettings}
+        className="flex-row items-center bg-guard-surface border border-guard-primary/30 rounded-2xl p-4 mb-2"
+      >
+        <View
+          className="w-10 h-10 rounded-xl items-center justify-center mr-3"
+          style={{
+            backgroundColor: lockOn ? `${theme.accent}20` : 'rgba(255,255,255,0.05)',
+          }}
+        >
+          <Lock size={18} color={lockOn ? theme.accent : theme.muted} />
+        </View>
+        <View className="flex-1">
+          <Text className="text-white font-bold">Lock & PIN</Text>
+          <Text className="text-white/60 text-xs mt-0.5">
+            {lockOn ? 'On — PIN required at launch' : 'Off — anyone with your phone can open Guard'}
           </Text>
         </View>
         <ChevronRight size={18} color={theme.textDim} />

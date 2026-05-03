@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { View } from 'react-native';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
+import { View, AppState, type AppStateStatus } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AnimatePresence } from 'moti';
 import { Navigator } from './navigation/Navigator';
@@ -9,9 +9,12 @@ import { CheckInModal } from './components/CheckInModal';
 import { ThemeManager } from './components/ThemeManager';
 import { UpdateBanner } from './components/UpdateBanner';
 import { AlphaBanner } from './components/AlphaBanner';
+import { LockScreen } from './screens/LockScreen';
+import { useStore } from './store/useStore';
 import { useCommunityStore, useCommunityConfig } from './store/useCommunityStore';
 import { notificationService } from './services/notificationService';
 import { savePushToken } from './services/community';
+import { lockService } from './services/lockService';
 
 /**
  * Registers the device's Expo push token on sign-in so the Supabase
@@ -51,8 +54,63 @@ function usePartnerPushRegistration() {
   }, []);
 }
 
+/**
+ * Lock-gate hook. When the user has a PIN set:
+ *   - Cold start → app is locked.
+ *   - Background → foreground transitions check elapsed time vs. lockTimeoutMode.
+ *
+ * The LockScreen component renders when `locked === true` and intercepts ALL
+ * input until PIN / biometric verification calls `unlock()`.
+ */
+function useLockGate() {
+  const pinEnabled = useStore((s) => s.pinEnabled);
+  const pinHashPresent = useStore((s) => s.pinHashPresent);
+  const lockTimeoutMode = useStore((s) => s.lockTimeoutMode);
+
+  const protectionOn = pinEnabled && pinHashPresent;
+  // Initial state: if PIN protection is on, we boot LOCKED.
+  const [locked, setLocked] = useState<boolean>(protectionOn);
+  const lastActiveAtRef = useRef<number | null>(null);
+
+  // Sync the SecureStore presence flag once on mount — a fresh install or
+  // wiped keychain shouldn't leave us locked with no way in.
+  useEffect(() => {
+    void lockService.syncPinPresentFlag();
+  }, []);
+
+  // If protection turned on/off mid-session, reflect it immediately.
+  useEffect(() => {
+    if (!protectionOn) setLocked(false);
+  }, [protectionOn]);
+
+  // AppState — start a timer when going to background; on return, decide
+  // whether to lock based on lockTimeoutMode.
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (next: AppStateStatus) => {
+      if (next === 'active') {
+        if (!protectionOn) {
+          lastActiveAtRef.current = Date.now();
+          return;
+        }
+        const should = lockService.shouldLockOnForeground(lastActiveAtRef.current, lockTimeoutMode);
+        if (should) setLocked(true);
+        lastActiveAtRef.current = Date.now();
+      } else if (next === 'background' || next === 'inactive') {
+        // Stamp time of leaving; the test on next 'active' decides.
+        lastActiveAtRef.current = Date.now();
+      }
+    });
+    return () => sub.remove();
+  }, [protectionOn, lockTimeoutMode]);
+
+  const unlock = useCallback(() => setLocked(false), []);
+
+  return { locked: protectionOn && locked, unlock };
+}
+
 export default function App() {
   const [isSplashComplete, setIsSplashComplete] = useState(false);
+  const { locked, unlock } = useLockGate();
   usePartnerPushRegistration();
 
   return (
@@ -61,6 +119,8 @@ export default function App() {
       <AnimatePresence exitBeforeEnter>
         {!isSplashComplete ? (
           <SplashScreen key="splash" onComplete={() => setIsSplashComplete(true)} />
+        ) : locked ? (
+          <LockScreen key="lock" onUnlock={unlock} />
         ) : (
           <PunishmentModeWrapper key="main">
             <SafeAreaView edges={['top']} className="bg-guard-bg">

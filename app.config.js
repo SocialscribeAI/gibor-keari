@@ -43,6 +43,12 @@ module.exports = () => {
       plugins: [
         ['expo-notifications', { color: '#C89A3C' }],
         ['expo-build-properties', { android: { kotlinVersion: '1.9.25' } }],
+        // PIN lock — secure storage + biometric unlock
+        'expo-secure-store',
+        [
+          'expo-local-authentication',
+          { faceIDPermission: 'Allow Guard to unlock with Face ID.' },
+        ],
       ],
       extra: {
         eas: { projectId: '258cd0b4-3baf-4834-9e56-1459dd1fa95e' },

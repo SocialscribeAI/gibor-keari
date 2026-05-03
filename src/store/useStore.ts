@@ -379,6 +379,188 @@ export interface AiDangerAnalysis {
 }
 
 // =============================================================================
+// TYPES — Clinical Assessment (research-derived placements; coach-managed)
+// =============================================================================
+//
+// Every assessment field carries metadata: where it came from, how confident
+// we are, and the evidence. The coach writes most of these via the
+// `clinical_update_assessment` tool; the user can edit any of them in About Me.
+//
+// `value: null` means "unknown" — the field hasn't been observed/inferred yet.
+// We never invent a default — empty is the honest state for an un-met person.
+
+export type AssessmentSource =
+  | 'user-stated'        // user told us directly
+  | 'coach-inferred'     // coach deduced from conversation
+  | 'pattern-detected'   // detected from logs/events
+  | 'event-derived'      // pulled from a fall/close-call/check-in
+  | 'unknown';
+
+export type AssessmentConfidence = 'low' | 'medium' | 'high';
+
+export interface AssessmentField<T> {
+  value: T | null;
+  source: AssessmentSource;
+  confidence: AssessmentConfidence;
+  evidence?: string;     // short quote / signal that produced the value
+  updatedAt: string;     // ISO
+}
+
+// Ramchal ladder (Mesillat Yesharim §7.1) — where on the stage-model is this man?
+export type RamchalStage = 'zehirut' | 'zerizut' | 'nekiyut' | 'perishut' | 'taharah' | 'chassidut';
+
+// Bilvavi yesod (§7.9) — which element dominates this man's struggle pattern?
+export type Yesod = 'earth' | 'water' | 'wind' | 'fire';
+
+// Tanya identity-frame (§7.2) — the most predictive single field
+export type IdentityFrame =
+  | 'tzaddik-fantasy'    // expects to not feel urges; brittle
+  | 'beinoni-realistic'  // expects urges, owns actions; resilient
+  | 'rasha-despair';     // identifies with the falls; needs reframe first
+
+// Twerski "addictive thinking" distortions (§7.7) — same shape as CBT distortion list
+export type Distortion =
+  | 'i-can-stop-anytime'
+  | 'i-deserve-this'
+  | 'no-one-knows'
+  | 'not-hurting-anyone'
+  | 'this-is-relaxation'
+  | 'this-is-self-care'
+  | 'already-fell-may-as-well'
+  | 'just-once'
+  | 'tomorrow-is-different'
+  | 'i-am-broken-anyway'
+  | 'the-app-is-watching-not-me';
+
+// Bitachon baseline (Chovos HaLevavos §7.4) — predicts white-knuckling burnout
+export type BitachonLevel = 'low' | 'moderate' | 'high';
+
+// Reward-mapped triggers (Duhigg §5) — what reward is the user actually chasing?
+export type PrimaryReward =
+  | 'stress-relief'
+  | 'loneliness-relief'
+  | 'boredom-escape'
+  | 'rejection-numbing'
+  | 'self-soothing'
+  | 'novelty-seeking'
+  | 'ritual-comfort';
+
+// Post-fall pattern (Tanya Iggeres HaTeshuvah §7.2) — drives post-fall flow variant
+export type PostFallPattern =
+  | 'shame-spiral'
+  | 'minimize-deny'
+  | 'immediate-recommit'
+  | 'numb-disconnect';
+
+export type ChaserRisk = 'low' | 'moderate' | 'high';
+export type SpousalAwareness = 'unknown' | 'aware-supportive' | 'aware-not-supportive' | 'unaware';
+export type IsolationLevel = 'connected' | 'somewhat-isolated' | 'very-isolated';
+
+// Which research framework leads for this user — drives content tier in basePreamble
+export type RecoveryFramework =
+  | 'breslov'
+  | 'tanya'
+  | 'mussar-yeshivish'
+  | 'twerski-12step'
+  | 'cbt-secular'
+  | 'mixed';
+
+export interface HaltSensitivity {
+  hungry: number;  // 0-10
+  angry: number;
+  lonely: number;
+  tired: number;
+}
+
+export interface ClinicalAssessment {
+  // Ramchal placement
+  ramchalStage: AssessmentField<RamchalStage>;
+  // Bilvavi
+  dominantYesod: AssessmentField<Yesod>;
+  yesodPattern: AssessmentField<string>;          // free-text — how the yesod expresses
+  // Tanya identity frame
+  identityFrame: AssessmentField<IdentityFrame>;
+  // Twerski distortion profile
+  activeDistortions: AssessmentField<Distortion[]>;
+  // Bitachon
+  bitachonBaseline: AssessmentField<BitachonLevel>;
+  // HALT
+  haltSensitivity: AssessmentField<HaltSensitivity>;
+  // Reward mapping
+  primaryReward: AssessmentField<PrimaryReward>;
+  // Post-fall pattern
+  postFallPattern: AssessmentField<PostFallPattern>;
+  postFallChaserRisk: AssessmentField<ChaserRisk>;
+  // History / severity
+  yearsStruggling: AssessmentField<number>;
+  longestCleanStretch: AssessmentField<number>;
+  previousAttempts: AssessmentField<string[]>;
+  // Social / relational
+  isMarried: AssessmentField<boolean>;
+  spousalAwareness: AssessmentField<SpousalAwareness>;
+  hasFrumCommunity: AssessmentField<boolean>;
+  hasMashpiaOrRav: AssessmentField<boolean>;
+  isolationLevel: AssessmentField<IsolationLevel>;
+  // Goals
+  primaryGoal: AssessmentField<string>;
+  motivationDeepReason: AssessmentField<string>;
+  // Coach's evolving hypothesis
+  workingHypothesis: AssessmentField<string>;
+  primaryFramework: AssessmentField<RecoveryFramework>;
+}
+
+// =============================================================================
+// TYPES — Coach Knowledge Base (the therapist's chart)
+// =============================================================================
+
+export type KbCategory =
+  | 'theme'              // recurring topic across sessions
+  | 'event'              // specific past event the user shared
+  | 'pattern'            // observed behavioral pattern
+  | 'commitment'         // promise the user made (verbal / vow)
+  | 'identity-statement' // user's own words about who they are
+  | 'relationship'       // a person in user's life worth tracking
+  | 'breakthrough'       // an insight that landed
+  | 'concern'            // something coach is watching with worry
+  | 'preference';        // what works / doesn't work for this user
+
+export type KbImportance = 'low' | 'medium' | 'high' | 'critical';
+
+export interface KnowledgeBaseEntry {
+  id: string;
+  category: KbCategory;
+  title: string;          // short label — ~50 chars
+  content: string;        // the actual note
+  importance: KbImportance;
+  source: AssessmentSource;
+  evidence?: string;      // short quote / signal
+  createdAt: string;
+  updatedAt: string;
+  archived?: boolean;
+  relatedEntryIds?: string[];
+}
+
+export interface CoachKnowledgeBase {
+  entries: KnowledgeBaseEntry[];
+  currentAvodah: string;       // what the user is working on right now
+  lastSessionFocus: string;    // theme of the last conversation
+  openLoops: string[];         // things to follow up on next session
+  redFlags: string[];          // patterns to watch for
+}
+
+export type InferenceMode = 'auto' | 'confirm';
+
+// =============================================================================
+// TYPES — PIN lock
+// =============================================================================
+//
+// The PIN itself is hashed and lives in expo-secure-store (encrypted, hardware-
+// backed via iOS Keychain / Android Keystore). The store only mirrors the
+// presence flag so the UI knows whether a PIN exists without unlocking SecureStore.
+
+export type LockTimeoutMode = 'immediate' | '1min' | '5min' | '15min' | 'never';
+
+// =============================================================================
 // DEFAULTS
 // =============================================================================
 
@@ -436,6 +618,48 @@ const DEFAULT_MILESTONES: MilestoneRung[] = [
   { day: 180, label: 'Six Months', meaning: 'The mane fills in', unlocked: false },
   { day: 365, label: 'One Year', meaning: "Gibor ka'ari — a lion in full", unlocked: false },
 ];
+
+// Empty AssessmentField — used to seed every assessment slot. `null` value =
+// "we don't know yet." Coach fills these in over time via tools.
+const emptyField = <T,>(): AssessmentField<T> => ({
+  value: null,
+  source: 'unknown',
+  confidence: 'low',
+  updatedAt: new Date(0).toISOString(),
+});
+
+const createEmptyAssessment = (): ClinicalAssessment => ({
+  ramchalStage: emptyField<RamchalStage>(),
+  dominantYesod: emptyField<Yesod>(),
+  yesodPattern: emptyField<string>(),
+  identityFrame: emptyField<IdentityFrame>(),
+  activeDistortions: emptyField<Distortion[]>(),
+  bitachonBaseline: emptyField<BitachonLevel>(),
+  haltSensitivity: emptyField<HaltSensitivity>(),
+  primaryReward: emptyField<PrimaryReward>(),
+  postFallPattern: emptyField<PostFallPattern>(),
+  postFallChaserRisk: emptyField<ChaserRisk>(),
+  yearsStruggling: emptyField<number>(),
+  longestCleanStretch: emptyField<number>(),
+  previousAttempts: emptyField<string[]>(),
+  isMarried: emptyField<boolean>(),
+  spousalAwareness: emptyField<SpousalAwareness>(),
+  hasFrumCommunity: emptyField<boolean>(),
+  hasMashpiaOrRav: emptyField<boolean>(),
+  isolationLevel: emptyField<IsolationLevel>(),
+  primaryGoal: emptyField<string>(),
+  motivationDeepReason: emptyField<string>(),
+  workingHypothesis: emptyField<string>(),
+  primaryFramework: emptyField<RecoveryFramework>(),
+});
+
+const createEmptyKnowledgeBase = (): CoachKnowledgeBase => ({
+  entries: [],
+  currentAvodah: '',
+  lastSessionFocus: '',
+  openLoops: [],
+  redFlags: [],
+});
 
 // =============================================================================
 // STATE
@@ -525,6 +749,29 @@ interface GuardState {
   coachStylePrefs: CoachStylePrefs;
   tacticEffectiveness: Record<string, TacticEffectivenessEntry>;
 
+  // Clinical assessment — research-derived placements (mostly coach-managed,
+  // user-editable in About Me).
+  clinicalAssessment: ClinicalAssessment;
+
+  // Coach's knowledge base — the therapist's chart. Free-form structured
+  // notes the coach writes/updates as it learns the user.
+  coachKnowledgeBase: CoachKnowledgeBase;
+
+  // Last time the user interacted with the Coach screen (any send). Used by
+  // basePreamble() to detect new sessions: 4+ hour gap = "[NEW SESSION]"
+  lastCoachInteractionAt: string | null;
+
+  // Whether coach writes assessment / KB entries silently (auto) or asks the
+  // user first (confirm). Default 'auto' — feels like a real therapist's chart.
+  inferenceMode: InferenceMode;
+
+  // PIN lock — toggles + mirror flags. The actual PIN hash lives in
+  // expo-secure-store (see services/lockService.ts).
+  pinEnabled: boolean;
+  pinHashPresent: boolean;       // mirror of SecureStore — set by lockService
+  biometricEnabled: boolean;     // FaceID / TouchID / fingerprint as faster unlock
+  lockTimeoutMode: LockTimeoutMode;
+
   // =========================================================================
   // ACTIONS
   // =========================================================================
@@ -575,8 +822,37 @@ interface GuardState {
   rateTactic: (id: string, worked: boolean, context?: string) => void;
   likeMantra: (text: string) => void;
   dislikeMantra: (text: string) => void;
+  markCoachInteraction: () => void;
   regenerateIdentity: () => void;
   resetData: () => void;
+
+  // Clinical assessment (called by clinical_update_assessment tool + user edits)
+  updateAssessmentField: <K extends keyof ClinicalAssessment>(
+    field: K,
+    patch: Partial<ClinicalAssessment[K]> & { value: ClinicalAssessment[K]['value'] }
+  ) => void;
+  clearAssessmentField: <K extends keyof ClinicalAssessment>(field: K) => void;
+
+  // Knowledge base (called by kb_* tools + user edits in About Me)
+  kbAddEntry: (entry: Omit<KnowledgeBaseEntry, 'id' | 'createdAt' | 'updatedAt'>) => string; // returns id
+  kbUpdateEntry: (id: string, patch: Partial<Omit<KnowledgeBaseEntry, 'id' | 'createdAt'>>) => void;
+  kbArchiveEntry: (id: string) => void;
+  kbDeleteEntry: (id: string) => void; // hard delete (user-initiated only)
+  kbSetCurrentAvodah: (text: string) => void;
+  kbSetSessionFocus: (text: string) => void;
+  kbAddOpenLoop: (text: string) => void;
+  kbResolveOpenLoop: (text: string) => void;
+  kbAddRedFlag: (text: string) => void;
+  kbClearRedFlag: (text: string) => void;
+
+  // Inference mode toggle (auto-write vs confirm-first)
+  setInferenceMode: (mode: InferenceMode) => void;
+
+  // PIN lock toggles (the actual PIN hash is managed by lockService)
+  setPinEnabled: (enabled: boolean) => void;
+  setPinHashPresent: (present: boolean) => void;
+  setBiometricEnabled: (enabled: boolean) => void;
+  setLockTimeoutMode: (mode: LockTimeoutMode) => void;
 
   // Calendar editing (§2.5)
   setCalendarEntry: (dayKey: string, entry: LogEntry | null) => void;
@@ -701,6 +977,16 @@ export const useStore = create<GuardState>()(
 
       coachStylePrefs: { ...DEFAULT_COACH_STYLE },
       tacticEffectiveness: {},
+
+      clinicalAssessment: createEmptyAssessment(),
+      coachKnowledgeBase: createEmptyKnowledgeBase(),
+      lastCoachInteractionAt: null,
+      inferenceMode: 'auto',
+
+      pinEnabled: false,
+      pinHashPresent: false,
+      biometricEnabled: false,
+      lockTimeoutMode: 'immediate',
 
       // ---------------------- Actions ----------------------
 
@@ -1061,12 +1347,164 @@ export const useStore = create<GuardState>()(
         });
       },
 
+      markCoachInteraction: () => {
+        set({ lastCoachInteractionAt: new Date().toISOString() });
+      },
+
       regenerateIdentity: () => {
         set({
           displayName: `Ari_${Math.floor(1000 + Math.random() * 8999)}`,
           userId: uuidv4(),
         });
       },
+
+      // ---- Clinical assessment ----
+      updateAssessmentField: (field, patch) => {
+        const { clinicalAssessment } = get();
+        const existing = clinicalAssessment[field];
+        const next = {
+          ...existing,
+          ...patch,
+          updatedAt: new Date().toISOString(),
+        };
+        set({
+          clinicalAssessment: {
+            ...clinicalAssessment,
+            // The cast is necessary because TS can't narrow the per-field type
+            // through the generic key here. Runtime shape matches AssessmentField<T>.
+            [field]: next as ClinicalAssessment[typeof field],
+          },
+        });
+      },
+
+      clearAssessmentField: (field) => {
+        const { clinicalAssessment } = get();
+        const cleared = {
+          ...clinicalAssessment[field],
+          value: null,
+          source: 'unknown' as AssessmentSource,
+          confidence: 'low' as AssessmentConfidence,
+          evidence: undefined,
+          updatedAt: new Date().toISOString(),
+        };
+        set({
+          clinicalAssessment: {
+            ...clinicalAssessment,
+            [field]: cleared as ClinicalAssessment[typeof field],
+          },
+        });
+      },
+
+      // ---- Knowledge base ----
+      kbAddEntry: (entry) => {
+        const id = uuidv4();
+        const now = new Date().toISOString();
+        const full: KnowledgeBaseEntry = { ...entry, id, createdAt: now, updatedAt: now };
+        set((s) => ({
+          coachKnowledgeBase: {
+            ...s.coachKnowledgeBase,
+            entries: [full, ...s.coachKnowledgeBase.entries],
+          },
+        }));
+        return id;
+      },
+
+      kbUpdateEntry: (id, patch) => {
+        set((s) => ({
+          coachKnowledgeBase: {
+            ...s.coachKnowledgeBase,
+            entries: s.coachKnowledgeBase.entries.map((e) =>
+              e.id === id ? { ...e, ...patch, updatedAt: new Date().toISOString() } : e
+            ),
+          },
+        }));
+      },
+
+      kbArchiveEntry: (id) => {
+        set((s) => ({
+          coachKnowledgeBase: {
+            ...s.coachKnowledgeBase,
+            entries: s.coachKnowledgeBase.entries.map((e) =>
+              e.id === id ? { ...e, archived: true, updatedAt: new Date().toISOString() } : e
+            ),
+          },
+        }));
+      },
+
+      kbDeleteEntry: (id) => {
+        set((s) => ({
+          coachKnowledgeBase: {
+            ...s.coachKnowledgeBase,
+            entries: s.coachKnowledgeBase.entries.filter((e) => e.id !== id),
+          },
+        }));
+      },
+
+      kbSetCurrentAvodah: (text) => {
+        set((s) => ({
+          coachKnowledgeBase: { ...s.coachKnowledgeBase, currentAvodah: text.trim() },
+        }));
+      },
+
+      kbSetSessionFocus: (text) => {
+        set((s) => ({
+          coachKnowledgeBase: { ...s.coachKnowledgeBase, lastSessionFocus: text.trim() },
+        }));
+      },
+
+      kbAddOpenLoop: (text) => {
+        const trimmed = text.trim();
+        if (!trimmed) return;
+        set((s) => {
+          if (s.coachKnowledgeBase.openLoops.includes(trimmed)) return s;
+          return {
+            coachKnowledgeBase: {
+              ...s.coachKnowledgeBase,
+              openLoops: [...s.coachKnowledgeBase.openLoops, trimmed],
+            },
+          };
+        });
+      },
+
+      kbResolveOpenLoop: (text) => {
+        set((s) => ({
+          coachKnowledgeBase: {
+            ...s.coachKnowledgeBase,
+            openLoops: s.coachKnowledgeBase.openLoops.filter((l) => l !== text),
+          },
+        }));
+      },
+
+      kbAddRedFlag: (text) => {
+        const trimmed = text.trim();
+        if (!trimmed) return;
+        set((s) => {
+          if (s.coachKnowledgeBase.redFlags.includes(trimmed)) return s;
+          return {
+            coachKnowledgeBase: {
+              ...s.coachKnowledgeBase,
+              redFlags: [...s.coachKnowledgeBase.redFlags, trimmed],
+            },
+          };
+        });
+      },
+
+      kbClearRedFlag: (text) => {
+        set((s) => ({
+          coachKnowledgeBase: {
+            ...s.coachKnowledgeBase,
+            redFlags: s.coachKnowledgeBase.redFlags.filter((f) => f !== text),
+          },
+        }));
+      },
+
+      setInferenceMode: (mode) => set({ inferenceMode: mode }),
+
+      // ---- PIN lock (mirror flags only — hash lives in SecureStore) ----
+      setPinEnabled: (enabled) => set({ pinEnabled: enabled }),
+      setPinHashPresent: (present) => set({ pinHashPresent: present }),
+      setBiometricEnabled: (enabled) => set({ biometricEnabled: enabled }),
+      setLockTimeoutMode: (mode) => set({ lockTimeoutMode: mode }),
 
       setThemePreference: (pref) => set({ themePreference: pref }),
 
@@ -1096,6 +1534,9 @@ export const useStore = create<GuardState>()(
           customTactics: [],
           learnRecommendations: [],
           aiDangerAnalysis: null,
+          clinicalAssessment: createEmptyAssessment(),
+          coachKnowledgeBase: createEmptyKnowledgeBase(),
+          lastCoachInteractionAt: null,
         });
       },
 
@@ -1321,13 +1762,17 @@ export const useStore = create<GuardState>()(
           coachSummary: null,
           coachStylePrefs: { ...DEFAULT_COACH_STYLE },
           tacticEffectiveness: {},
+          clinicalAssessment: createEmptyAssessment(),
+          coachKnowledgeBase: createEmptyKnowledgeBase(),
+          lastCoachInteractionAt: null,
+          inferenceMode: 'auto',
         });
       },
     }),
     {
       name: 'guard-user-profile',
       storage: createJSONStorage(() => AsyncStorage),
-      version: 8,
+      version: 10,
       // Migrate from v1 (4-axis profile) to v2 (12-axis profile + new fields).
       migrate: (persistedState: unknown, version: number) => {
         if (!persistedState || typeof persistedState !== 'object') return persistedState;
@@ -1391,6 +1836,25 @@ export const useStore = create<GuardState>()(
         if (version < 8) {
           s.coachStylePrefs = s.coachStylePrefs ?? { ...DEFAULT_COACH_STYLE };
           s.tacticEffectiveness = s.tacticEffectiveness ?? {};
+        }
+        if (version < 9) {
+          // Therapist-grade assessment + coach knowledge base. Default 'auto'
+          // inference mode — coach writes silently, source-tagged so user
+          // can correct in About Me.
+          s.clinicalAssessment = s.clinicalAssessment ?? createEmptyAssessment();
+          s.coachKnowledgeBase = s.coachKnowledgeBase ?? createEmptyKnowledgeBase();
+          s.lastCoachInteractionAt = s.lastCoachInteractionAt ?? null;
+          s.inferenceMode = s.inferenceMode ?? 'auto';
+        }
+        if (version < 10) {
+          // PIN lock — opt-in. Default disabled so existing users see no change
+          // until they explicitly turn it on. The actual hash lives in
+          // SecureStore (managed by lockService); the booleans here are mirrors
+          // for the UI and AppState gate logic.
+          s.pinEnabled = s.pinEnabled ?? false;
+          s.pinHashPresent = s.pinHashPresent ?? false;
+          s.biometricEnabled = s.biometricEnabled ?? false;
+          s.lockTimeoutMode = s.lockTimeoutMode ?? 'immediate';
         }
         return s;
       },

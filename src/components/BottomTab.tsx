@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, Pressable } from 'react-native';
 import { MotiView } from 'moti';
-import { Home, Calendar, Sparkles, User, Users } from 'lucide-react-native';
+import { Home, Calendar, Sparkles, BookOpen, User, Users } from 'lucide-react-native';
 import { useStore } from '../store/useStore';
 import { useTheme } from '../constants/theme';
 
@@ -16,14 +16,15 @@ export const BottomTab: React.FC<BottomTabProps> = ({ activeTab, onTabChange }) 
   const { hasNewCoachMessage, setHasNewCoachMessage } = useStore();
   const theme = useTheme();
 
-  // Five-tab nav: the daily-use surfaces. Tactics + Learn live inside Profile
-  // and the Home action grid so the bar stays uncramped and readable.
+  // Six-tab nav: daily-use surfaces plus Learn. Tactics still lives inside
+  // Profile and the Home action grid to keep the bar from getting cramped.
   const tabs: { id: TabType; label: string; icon: any }[] = [
     { id: 'home', label: 'Home', icon: Home },
     { id: 'calendar', label: 'Calendar', icon: Calendar },
     { id: 'coach', label: 'Coach', icon: Sparkles },
+    { id: 'learn', label: 'Learn', icon: BookOpen },
     { id: 'community', label: 'Circle', icon: Users },
-    { id: 'profile', label: 'You', icon: User },
+    { id: 'profile', label: 'About me', icon: User },
   ];
 
   const handleTabPress = (id: TabType) => {

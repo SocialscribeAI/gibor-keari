@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import { View, Text, Pressable, TextInput, ScrollView } from 'react-native';
 import { MotiView, AnimatePresence } from 'moti';
 import { ArrowRight, Check, Lock, ChevronLeft } from 'lucide-react-native';
@@ -7,19 +7,21 @@ import {
   useStore,
   type Tone,
   type ReligiousLevel,
-  type TriggerTag,
-  type Intensity,
-  type LearningStyle,
 } from '../store/useStore';
 import { useTheme, BRAND } from '../constants/theme';
 import { LionMark } from '../components/LionMark';
 
 // =============================================================================
-// Onboarding — personality builder.
-// Asks only for the axes the rest of the app actually consumes:
-//   religious level, tone, triggers, intensity, learning style.
-// Religious + tone are required; the rest are skippable and editable later
-// from Profile → Personalization.
+// Onboarding — minimal intake. We ask only what the app absolutely must know
+// to start: religious level (gates content tier), tone (how Coach speaks),
+// display name (what Coach calls the user), and privacy promise.
+//
+// Everything else — triggers, intensity, learning style, life stage, primary
+// reward, identity frame, family context, etc. — is captured AMBIENTLY by
+// the coach over time and can also be edited manually in About Me. This is
+// how a real therapist works: you don't fill out a 30-question form on day
+// one; the chart fills itself over months. Form fatigue is the #1 reason
+// users abandon recovery apps in the first session.
 // =============================================================================
 
 type Option<T> = { id: T; label: string; desc?: string };
@@ -41,55 +43,11 @@ const TONES: Option<NonNullable<Tone>>[] = [
   { id: 'clinical', label: 'Clinical', desc: 'Evidence-based. Neutral.' },
 ];
 
-const TRIGGERS: Option<TriggerTag>[] = [
-  { id: 'stress', label: 'Stress' },
-  { id: 'loneliness', label: 'Loneliness' },
-  { id: 'boredom', label: 'Boredom' },
-  { id: 'fatigue', label: 'Fatigue' },
-  { id: 'visual', label: 'Visual cues' },
-  { id: 'late-night', label: 'Late night' },
-  { id: 'rejection', label: 'Rejection' },
-  { id: 'success', label: 'After success' },
-  { id: 'travel', label: 'Travel / alone' },
-  { id: 'conflict', label: 'Conflict' },
-];
+type StepId = 'welcome' | 'religious' | 'tone' | 'name' | 'privacyPromise';
 
-const INTENSITIES: Option<NonNullable<Intensity>>[] = [
-  { id: 'gentle', label: 'Gentle', desc: 'Low pressure. Long road.' },
-  { id: 'standard', label: 'Standard', desc: 'Balanced pace.' },
-  { id: 'hardcore', label: 'Hardcore', desc: 'Strict. High stakes.' },
-  { id: 'monk-mode', label: 'Monk mode', desc: 'Total reset. Radical focus.' },
-];
-
-const LEARNING: Option<NonNullable<LearningStyle>>[] = [
-  { id: 'read', label: 'Reading' },
-  { id: 'listen', label: 'Listening' },
-  { id: 'watch', label: 'Watching' },
-  { id: 'do', label: 'Doing' },
-  { id: 'talk', label: 'Talking it through' },
-];
-
-type StepId =
-  | 'welcome'
-  | 'religious'
-  | 'tone'
-  | 'triggers'
-  | 'intensity'
-  | 'learning'
-  | 'privacyPromise';
-
-const ORDER: StepId[] = [
-  'welcome',
-  'religious',
-  'tone',
-  'triggers',
-  'intensity',
-  'learning',
-  'privacyPromise',
-];
-
-// Required steps need a real answer before continuing.
-const REQUIRED: Set<StepId> = new Set(['religious', 'tone', 'privacyPromise']);
+// All non-welcome steps are required. Trimmed to the essentials — nothing
+// left to skip. Everything else is captured ambiently by the coach.
+const ORDER: StepId[] = ['welcome', 'religious', 'tone', 'name', 'privacyPromise'];
 
 export const Onboarding: React.FC = () => {
   const { updateProfile, completeOnboarding, acknowledgePrivacyPromise } = useStore();
@@ -102,14 +60,9 @@ export const Onboarding: React.FC = () => {
   const [customReligious, setCustomReligious] = useState('');
   const [tone, setTone] = useState<Tone>(null);
   const [customTone, setCustomTone] = useState('');
-  const [triggers, setTriggers] = useState<TriggerTag[]>([]);
-  const [customTriggers, setCustomTriggers] = useState('');
-  const [intensity, setIntensity] = useState<Intensity>(null);
-  const [learning, setLearning] = useState<LearningStyle>(null);
+  const [name, setName] = useState('');
 
   const step = ORDER[stepIndex];
-
-  const totalSkippable = useMemo(() => ORDER.filter((s) => !REQUIRED.has(s) && s !== 'welcome').length, []);
 
   const canAdvance = (): boolean => {
     switch (step) {
@@ -119,29 +72,24 @@ export const Onboarding: React.FC = () => {
         return religious !== null && (religious !== 'custom' || customReligious.trim().length > 0);
       case 'tone':
         return tone !== null && (tone !== 'custom' || customTone.trim().length > 0);
+      case 'name':
+        return name.trim().length >= 1;
       case 'privacyPromise':
         return true;
-      default:
-        return true; // skippable
     }
   };
 
   const next = () => {
     if (stepIndex >= ORDER.length - 1) {
-      // Finalize
-      const customTriggersArr = customTriggers
-        .split(',')
-        .map((s) => s.trim())
-        .filter(Boolean);
+      // Finalize \u2014 only the essentials. Everything else (triggers, intensity,
+      // learning style, life stage, etc.) is filled in ambiently by the coach
+      // or manually by the user in About Me.
       updateProfile({
         religiousLevel: religious,
         customReligious,
         tone,
         customTone,
-        primaryTriggers: triggers,
-        customTriggers: customTriggersArr,
-        intensity,
-        learningStyle: learning,
+        displayName: name.trim(),
       });
       acknowledgePrivacyPromise();
       completeOnboarding();
@@ -151,18 +99,11 @@ export const Onboarding: React.FC = () => {
   };
 
   const back = () => stepIndex > 0 && setStepIndex(stepIndex - 1);
-  const skip = () => !REQUIRED.has(step) && setStepIndex(stepIndex + 1);
-
-  const toggleTrigger = (t: TriggerTag) => {
-    setTriggers(triggers.includes(t) ? triggers.filter((x) => x !== t) : [...triggers, t]);
-  };
 
   const renderStep = () => {
     switch (step) {
       case 'welcome':
-        return (
-          <StepWelcome theme={theme} />
-        );
+        return <StepWelcome theme={theme} />;
       case 'religious':
         return (
           <SingleSelectStep
@@ -193,39 +134,11 @@ export const Onboarding: React.FC = () => {
             customPlaceholder="Describe your preferred tone..."
           />
         );
-      case 'triggers':
+      case 'name':
         return (
-          <MultiSelectStep
-            title="Pick your triggers"
-            subtitle="Select all that apply. We'll match tactics to these."
-            options={TRIGGERS}
-            selected={triggers}
-            onToggle={toggleTrigger}
-            customValue={customTriggers}
-            onCustomChange={setCustomTriggers}
-            customPlaceholder="Other triggers (comma-separated)..."
-            theme={theme}
-          />
-        );
-      case 'intensity':
-        return (
-          <SingleSelectStep
-            title="How intense?"
-            subtitle="Pick your pace. Changeable later."
-            options={INTENSITIES}
-            value={intensity}
-            onSelect={setIntensity}
-            theme={theme}
-          />
-        );
-      case 'learning':
-        return (
-          <SingleSelectStep
-            title="How do you learn best?"
-            subtitle="We'll lead with this in the library."
-            options={LEARNING}
-            value={learning}
-            onSelect={setLearning}
+          <NameStep
+            name={name}
+            onChange={setName}
             theme={theme}
           />
         );
@@ -282,11 +195,6 @@ export const Onboarding: React.FC = () => {
 
       {/* Footer controls */}
       <View className="pt-4">
-        {!REQUIRED.has(step) && !isWelcome && (
-          <Pressable onPress={skip} className="py-2 items-center mb-2">
-            <Text className="text-white/40 text-xs uppercase tracking-widest">Skip — decide later</Text>
-          </Pressable>
-        )}
         <Pressable
           onPress={next}
           disabled={!canAdvance()}
@@ -399,50 +307,65 @@ function SingleSelectStep<T extends string>({
           {subtitle}
         </Text>
       )}
-      {options.map((o) => (
-        <Pressable
-          key={o.id}
-          onPress={() => onSelect(o.id)}
-          className="mb-2.5 p-4 rounded-2xl flex-row items-center"
-          style={{
-            backgroundColor: value === o.id ? `${theme.accent}20` : theme.surface2,
-            borderWidth: 1,
-            borderColor: value === o.id ? theme.accent : theme.hairline,
-          }}
-        >
-          <View className="flex-1">
-            <Text className="font-black text-base" style={{ color: theme.text }}>
-              {o.label}
-            </Text>
-            {o.desc && (
-              <Text className="text-xs mt-1" style={{ color: theme.muted }}>
-                {o.desc}
+      {options.map((o) => {
+        const active = value === o.id;
+        return (
+          <Pressable
+            key={o.id}
+            onPress={() => onSelect(o.id)}
+            className="mb-2.5 p-4 rounded-2xl flex-row items-center"
+            style={{
+              backgroundColor: active ? theme.accent : theme.surface2,
+              borderWidth: 1,
+              borderColor: active ? theme.accent : theme.hairline,
+            }}
+          >
+            <View className="flex-1">
+              <Text
+                className="font-black text-base"
+                style={{ color: active ? theme.onAccent : theme.text }}
+              >
+                {o.label}
               </Text>
-            )}
-          </View>
-          {value === o.id && <Check size={18} color={theme.accent} />}
-        </Pressable>
-      ))}
+              {o.desc && (
+                <Text
+                  className="text-xs mt-1"
+                  style={{ color: active ? theme.onAccent : theme.muted, opacity: active ? 0.8 : 1 }}
+                >
+                  {o.desc}
+                </Text>
+              )}
+            </View>
+            {active && <Check size={18} color={theme.onAccent} />}
+          </Pressable>
+        );
+      })}
       {allowCustom && (
         <Pressable
           onPress={() => onSelect('custom' as unknown as T)}
           className="mb-2.5 p-4 rounded-2xl flex-row items-center"
           style={{
-            backgroundColor: isCustom ? `${theme.accent}20` : theme.surface2,
+            backgroundColor: isCustom ? theme.accent : theme.surface2,
             borderWidth: 1,
             borderColor: isCustom ? theme.accent : theme.hairline,
             borderStyle: 'dashed',
           }}
         >
           <View className="flex-1">
-            <Text className="font-black text-base" style={{ color: theme.text }}>
+            <Text
+              className="font-black text-base"
+              style={{ color: isCustom ? theme.onAccent : theme.text }}
+            >
               Custom
             </Text>
-            <Text className="text-xs mt-1" style={{ color: theme.muted }}>
+            <Text
+              className="text-xs mt-1"
+              style={{ color: isCustom ? theme.onAccent : theme.muted, opacity: isCustom ? 0.8 : 1 }}
+            >
               Define your own.
             </Text>
           </View>
-          {isCustom && <Check size={18} color={theme.accent} />}
+          {isCustom && <Check size={18} color={theme.onAccent} />}
         </Pressable>
       )}
       {allowCustom && isCustom && (
@@ -464,78 +387,38 @@ function SingleSelectStep<T extends string>({
   );
 }
 
-interface MultiSelectProps<T> {
-  title: string;
-  subtitle?: string;
-  options: Option<T>[];
-  selected: T[];
-  onToggle: (v: T) => void;
-  customValue?: string;
-  onCustomChange?: (v: string) => void;
-  customPlaceholder?: string;
+interface NameStepProps {
+  name: string;
+  onChange: (v: string) => void;
   theme: any;
 }
 
-function MultiSelectStep<T extends string>({
-  title,
-  subtitle,
-  options,
-  selected,
-  onToggle,
-  customValue,
-  onCustomChange,
-  customPlaceholder,
-  theme,
-}: MultiSelectProps<T>) {
-  return (
-    <View className="pt-2">
-      <Text className="text-3xl font-black mb-2" style={{ fontFamily: 'Outfit', color: theme.text }}>
-        {title}
-      </Text>
-      {subtitle && (
-        <Text className="mb-6 leading-6" style={{ color: theme.muted }}>
-          {subtitle}
-        </Text>
-      )}
-      <View className="flex-row flex-wrap gap-2">
-        {options.map((o) => {
-          const active = selected.includes(o.id);
-          return (
-            <Pressable
-              key={o.id}
-              onPress={() => onToggle(o.id)}
-              className="rounded-full px-4 py-2.5"
-              style={{
-                backgroundColor: active ? `${theme.accent}25` : theme.surface2,
-                borderWidth: 1,
-                borderColor: active ? theme.accent : theme.hairline,
-              }}
-            >
-              <Text
-                className="font-bold text-sm"
-                style={{ color: active ? theme.accent : theme.text }}
-              >
-                {o.label}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
-      {customPlaceholder && (
-        <TextInput
-          value={customValue}
-          onChangeText={onCustomChange}
-          placeholder={customPlaceholder}
-          placeholderTextColor={theme.textDim}
-          className="rounded-2xl px-4 py-3 mt-5"
-          style={{
-            backgroundColor: theme.surface2,
-            borderWidth: 1,
-            borderColor: theme.hairline,
-            color: theme.text,
-          }}
-        />
-      )}
-    </View>
-  );
-}
+const NameStep: React.FC<NameStepProps> = ({ name, onChange, theme }) => (
+  <View className="pt-2">
+    <Text className="text-3xl font-black mb-2" style={{ fontFamily: 'Outfit', color: theme.text }}>
+      What should Coach call you?
+    </Text>
+    <Text className="mb-6 leading-6" style={{ color: theme.muted }}>
+      First name, nickname, Hebrew name — whatever feels right. You can change it any time.
+    </Text>
+    <TextInput
+      value={name}
+      onChangeText={onChange}
+      placeholder="e.g. Yossi"
+      placeholderTextColor={theme.textDim}
+      autoCapitalize="words"
+      autoCorrect={false}
+      maxLength={40}
+      className="rounded-2xl px-4 py-4 text-lg"
+      style={{
+        backgroundColor: theme.surface2,
+        borderWidth: 1,
+        borderColor: theme.hairline,
+        color: theme.text,
+      }}
+    />
+    <Text className="text-xs mt-3" style={{ color: theme.textDim }}>
+      Stays on your phone. Never sent anywhere.
+    </Text>
+  </View>
+);
