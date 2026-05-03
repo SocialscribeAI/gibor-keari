@@ -4,6 +4,7 @@ import { MotiView, AnimatePresence } from 'moti';
 import { Siren, X, ArrowRight, Zap, Wind, BookOpen, Users, Clock } from 'lucide-react-native';
 import { useStore } from '../store/useStore';
 import { TACTICS } from '../constants/contentLibrary';
+import { useTheme } from '../constants/theme';
 import { selectForPanic } from '../utils/contentSelector';
 
 // =============================================================================
@@ -21,6 +22,7 @@ interface Props {
 }
 
 export const PanicButton: React.FC<Props> = ({ bottom = 90, right = 20 }) => {
+  const theme = useTheme();
   const [open, setOpen] = useState(false);
   const [budget, setBudget] = useState<TimeBudget | null>(null);
   const { personalityProfile, mantras, dailyMantraIndex } = useStore();
@@ -91,9 +93,9 @@ export const PanicButton: React.FC<Props> = ({ bottom = 90, right = 20 }) => {
           <View
             className="rounded-2xl p-4"
             style={{
-              backgroundColor: '#1A1E35',
+              backgroundColor: theme.surface,
               borderWidth: 1,
-              borderColor: 'rgba(44, 62, 122, 0.3)',
+              borderColor: theme.hairline,
             }}
           >
             <Text className="text-white/50 text-xs uppercase tracking-widest mb-2">
@@ -130,9 +132,9 @@ export const PanicButton: React.FC<Props> = ({ bottom = 90, right = 20 }) => {
               key={step.n}
               className="flex-row rounded-2xl p-4 mb-3"
               style={{
-                backgroundColor: '#1A1E35',
+                backgroundColor: theme.surface,
                 borderWidth: 1,
-                borderColor: 'rgba(44, 62, 122, 0.3)',
+                borderColor: theme.hairline,
               }}
             >
               <View
@@ -205,7 +207,7 @@ export const PanicButton: React.FC<Props> = ({ bottom = 90, right = 20 }) => {
             onPress={() => setBudget(o.key)}
             className="flex-row items-center rounded-2xl p-4 mb-3"
             style={{
-              backgroundColor: '#1A1E35',
+              backgroundColor: theme.surface,
               borderWidth: 1,
               borderColor: 'rgba(232,160,32,0.3)',
             }}
@@ -239,7 +241,7 @@ export const PanicButton: React.FC<Props> = ({ bottom = 90, right = 20 }) => {
           width: 56,
           height: 56,
           borderRadius: 28,
-          backgroundColor: '#C0392B',
+          backgroundColor: theme.danger,
           alignItems: 'center',
           justifyContent: 'center',
           shadowColor: '#C0392B',
@@ -263,7 +265,7 @@ export const PanicButton: React.FC<Props> = ({ bottom = 90, right = 20 }) => {
           <Pressable
             onPress={close}
             className="absolute top-12 right-6 w-10 h-10 rounded-full items-center justify-center z-10"
-            style={{ backgroundColor: 'rgba(255,255,255,0.08)' }}
+            style={{ backgroundColor: theme.surface }}
           >
             <X size={18} color="#F0F2FF" />
           </Pressable>
@@ -271,7 +273,7 @@ export const PanicButton: React.FC<Props> = ({ bottom = 90, right = 20 }) => {
             <Pressable
               onPress={() => setBudget(null)}
               className="absolute top-12 left-6 rounded-full px-4 py-2 z-10"
-              style={{ backgroundColor: 'rgba(255,255,255,0.06)' }}
+              style={{ backgroundColor: theme.hairline }}
             >
               <Text className="text-white/70 text-xs">← triage</Text>
             </Pressable>

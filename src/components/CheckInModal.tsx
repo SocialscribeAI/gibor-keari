@@ -325,14 +325,14 @@ export const CheckInModal: React.FC = () => {
                       onPress={() => setExercised(true)}
                       className="flex-1 rounded-2xl py-3 items-center"
                       style={{
-                        backgroundColor: exercised === true ? `${theme.success}25` : theme.surface2,
+                        backgroundColor: exercised === true ? theme.success : theme.surface2,
                         borderWidth: 1,
                         borderColor: exercised === true ? theme.success : theme.hairline,
                       }}
                     >
                       <Text
                         className="font-bold"
-                        style={{ color: exercised === true ? theme.success : theme.text }}
+                        style={{ color: exercised === true ? '#FFFFFF' : theme.text }}
                       >
                         Yes
                       </Text>
@@ -341,14 +341,14 @@ export const CheckInModal: React.FC = () => {
                       onPress={() => setExercised(false)}
                       className="flex-1 rounded-2xl py-3 items-center"
                       style={{
-                        backgroundColor: exercised === false ? `${theme.accent}25` : theme.surface2,
+                        backgroundColor: exercised === false ? theme.accent : theme.surface2,
                         borderWidth: 1,
                         borderColor: exercised === false ? theme.accent : theme.hairline,
                       }}
                     >
                       <Text
                         className="font-bold"
-                        style={{ color: exercised === false ? theme.accent : theme.text }}
+                        style={{ color: exercised === false ? theme.onAccent : theme.text }}
                       >
                         No
                       </Text>
@@ -507,27 +507,27 @@ const HaltRow: React.FC<{ label: string; icon: any; active: boolean; onPress: ()
     onPress={onPress}
     className="flex-row items-center rounded-2xl px-4 py-3"
     style={{
-      backgroundColor: active ? `${theme.accent}25` : theme.surface2,
+      backgroundColor: active ? theme.accent : theme.surface2,
       borderWidth: 1,
       borderColor: active ? theme.accent : theme.hairline,
     }}
   >
-    <Icon size={18} color={active ? theme.accent : theme.muted} />
+    <Icon size={18} color={active ? theme.onAccent : theme.muted} />
     <Text
       className="flex-1 ml-3 font-bold"
-      style={{ color: active ? theme.text : theme.text }}
+      style={{ color: active ? theme.onAccent : theme.text }}
     >
       {label}
     </Text>
     <View
       className="w-5 h-5 rounded-md items-center justify-center"
       style={{
-        backgroundColor: active ? theme.accent : 'transparent',
+        backgroundColor: active ? theme.onAccent : 'transparent',
         borderWidth: 1,
-        borderColor: active ? theme.accent : theme.hairline,
+        borderColor: active ? theme.onAccent : theme.hairline,
       }}
     >
-      {active && <Check size={12} color={theme.onAccent} />}
+      {active && <Check size={12} color={theme.accent} />}
     </View>
   </Pressable>
 );

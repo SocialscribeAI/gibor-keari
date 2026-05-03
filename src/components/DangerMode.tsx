@@ -314,7 +314,7 @@ export const DangerMode: React.FC<Props> = ({ isOpen, onClose }) => {
                   key={t.id}
                   onPress={() => toggleTrigger(t.id)}
                   style={{
-                    backgroundColor: active ? `${theme.accent}25` : theme.surface2,
+                    backgroundColor: active ? theme.accent : theme.surface2,
                     borderWidth: 1,
                     borderColor: active ? theme.accent : theme.hairline,
                     borderRadius: 20,
@@ -326,7 +326,7 @@ export const DangerMode: React.FC<Props> = ({ isOpen, onClose }) => {
                   }}
                 >
                   <Text style={{ fontSize: 14 }}>{t.emoji}</Text>
-                  <Text style={{ color: active ? theme.accent : theme.text, fontSize: 13, fontWeight: '700' }}>
+                  <Text style={{ color: active ? theme.onAccent : theme.text, fontSize: 13, fontWeight: '700' }}>
                     {t.label}
                   </Text>
                 </Pressable>

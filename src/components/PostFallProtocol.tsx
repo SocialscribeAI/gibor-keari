@@ -30,6 +30,7 @@ import {
   type PrecursorFlag,
 } from '../store/useStore';
 import { PrivacyNote } from './PrivacyNote';
+import { useTheme } from '../constants/theme';
 
 // =============================================================================
 // Post-Fall Protocol — the single most important flow in Guard (§2.3).
@@ -101,6 +102,7 @@ const PRECURSOR_OPTIONS: { value: PrecursorFlag; label: string; halt?: boolean }
 // =============================================================================
 
 export const PostFallProtocol: React.FC<Props> = ({ isOpen, onClose }) => {
+  const theme = useTheme();
   const {
     logFallDetailed,
     setRecoveryVow,
@@ -273,7 +275,7 @@ export const PostFallProtocol: React.FC<Props> = ({ isOpen, onClose }) => {
         <View className="flex-1 h-2 rounded-full bg-white/10 overflow-hidden">
           <View
             className="h-full rounded-full"
-            style={{ width: `${(value / 10) * 100}%`, backgroundColor: '#E8A020' }}
+            style={{ width: `${(value / 10) * 100}%`, backgroundColor: theme.accent }}
           />
         </View>
         <Pressable
@@ -403,7 +405,7 @@ export const PostFallProtocol: React.FC<Props> = ({ isOpen, onClose }) => {
               value={customDigital}
               onChangeText={setCustomDigital}
               placeholder="e.g. a specific website, a group chat"
-              placeholderTextColor="rgba(255,255,255,0.3)"
+              placeholderTextColor={theme.textDim}
               className="bg-guard-surface border border-guard-primary/30 rounded-xl px-3 py-3 text-white"
             />
           </StepShell>
@@ -460,7 +462,7 @@ export const PostFallProtocol: React.FC<Props> = ({ isOpen, onClose }) => {
               value={customNotes}
               onChangeText={setCustomNotes}
               placeholder="(optional)"
-              placeholderTextColor="rgba(255,255,255,0.3)"
+              placeholderTextColor={theme.textDim}
               multiline
               className="bg-guard-surface border border-guard-primary/30 rounded-xl px-3 py-3 text-white min-h-[80px]"
             />
@@ -516,9 +518,9 @@ export const PostFallProtocol: React.FC<Props> = ({ isOpen, onClose }) => {
                   onPress={s.accept}
                   className="rounded-2xl p-4 mb-3 flex-row"
                   style={{
-                    backgroundColor: s.isAccepted ? 'rgba(30,138,74,0.15)' : '#1A1E35',
+                    backgroundColor: s.isAccepted ? 'rgba(30,138,74,0.15)' : theme.surface,
                     borderWidth: 1,
-                    borderColor: s.isAccepted ? '#1E8A4A' : 'rgba(44, 62, 122, 0.3)',
+                    borderColor: s.isAccepted ? '#1E8A4A' : theme.hairline,
                   }}
                 >
                   <View
@@ -574,7 +576,7 @@ export const PostFallProtocol: React.FC<Props> = ({ isOpen, onClose }) => {
                       ? 'e.g. call partner at 10pm'
                       : 'e.g. read 15 min, no social media after 9'
                   }
-                  placeholderTextColor="rgba(255,255,255,0.3)"
+                  placeholderTextColor={theme.textDim}
                   className="bg-guard-surface border border-guard-primary/30 rounded-xl px-3 py-3 text-white"
                 />
               </View>
@@ -592,7 +594,7 @@ export const PostFallProtocol: React.FC<Props> = ({ isOpen, onClose }) => {
               value={vow}
               onChangeText={setVow}
               placeholder="I am the kind of person who gets up."
-              placeholderTextColor="rgba(255,255,255,0.3)"
+              placeholderTextColor={theme.textDim}
               multiline
               autoFocus
               className="bg-guard-surface border border-guard-accent/40 rounded-2xl px-4 py-4 text-white text-base min-h-[100px]"
@@ -635,7 +637,7 @@ export const PostFallProtocol: React.FC<Props> = ({ isOpen, onClose }) => {
             <Pressable
               onPress={commit}
               className="rounded-2xl py-4 items-center"
-              style={{ backgroundColor: '#E8A020' }}
+              style={{ backgroundColor: theme.accent }}
             >
               <Text className="text-guard-on-accent font-black text-base tracking-wide">
                 Save & keep going
@@ -681,7 +683,7 @@ export const PostFallProtocol: React.FC<Props> = ({ isOpen, onClose }) => {
             <Pressable
               onPress={step === 0 ? close : prev}
               className="w-10 h-10 rounded-full items-center justify-center"
-              style={{ backgroundColor: 'rgba(255,255,255,0.06)' }}
+              style={{ backgroundColor: theme.hairline }}
             >
               {step === 0 ? (
                 <X size={18} color="#F0F2FF" />
@@ -709,16 +711,16 @@ export const PostFallProtocol: React.FC<Props> = ({ isOpen, onClose }) => {
             <View
               className="absolute bottom-0 left-0 right-0 px-6 pt-3 pb-8"
               style={{
-                backgroundColor: 'rgba(15, 17, 32, 0.95)',
+                backgroundColor: theme.bg,
                 borderTopWidth: 1,
-                borderTopColor: 'rgba(44, 62, 122, 0.3)',
+                borderTopColor: theme.hairline,
               }}
             >
               <Pressable
                 onPress={next}
                 disabled={!canAdvance}
                 className="rounded-2xl py-4 flex-row items-center justify-center"
-                style={{ backgroundColor: '#E8A020', opacity: canAdvance ? 1 : 0.4 }}
+                style={{ backgroundColor: theme.accent, opacity: canAdvance ? 1 : 0.4 }}
               >
                 <Text className="text-guard-on-accent font-black mr-2">
                   {step === 0 ? "I'm ready" : 'Continue'}

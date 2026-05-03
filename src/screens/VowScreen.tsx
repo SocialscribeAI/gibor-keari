@@ -52,7 +52,9 @@ interface RewardCardProps {
   onChange: (v: string) => void;
   filled: boolean;
 }
-const RewardCard: React.FC<RewardCardProps> = ({ tier, value, onChange, filled }) => (
+const RewardCard: React.FC<RewardCardProps> = ({ tier, value, onChange, filled }) => {
+  const theme = useTheme();
+  return (
   <View
     className={`mb-4 rounded-3xl p-5 border ${
       filled
@@ -76,7 +78,7 @@ const RewardCard: React.FC<RewardCardProps> = ({ tier, value, onChange, filled }
       value={value}
       onChangeText={onChange}
       placeholder={`e.g. ${tier.examples[0]}`}
-      placeholderTextColor="rgba(240,230,210,0.3)"
+      placeholderTextColor={theme.textDim}
       className="bg-guard-bg border border-guard-primary/30 rounded-2xl px-4 py-3 text-white text-base"
       multiline
       blurOnSubmit={false}
@@ -94,7 +96,8 @@ const RewardCard: React.FC<RewardCardProps> = ({ tier, value, onChange, filled }
       ))}
     </View>
   </View>
-);
+  );
+};
 
 export const VowScreen: React.FC = () => {
   const { vows, setVow, startStreak } = useStore();

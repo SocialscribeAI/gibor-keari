@@ -1,0 +1,835 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Guard — Edit Board</title>
+<style>
+  body { font-family: -apple-system, Segoe UI, Roboto, sans-serif; max-width: 860px; margin: 2em auto; padding: 0 1em; color: #222; line-height: 1.5; }
+  h1 { font-size: 28px; border-bottom: 2px solid #333; padding-bottom: 6px; }
+  h2 { font-size: 22px; margin-top: 1.6em; border-bottom: 1px solid #bbb; padding-bottom: 4px; }
+  h3 { font-size: 17px; margin-top: 1.4em; }
+  code { background: #f2f2f2; padding: 1px 4px; border-radius: 3px; font-size: 0.92em; }
+  pre { background: #f6f6f6; padding: 12px; border-radius: 5px; overflow-x: auto; }
+  pre code { background: none; padding: 0; }
+  blockquote { border-left: 3px solid #999; padding: 4px 12px; color: #444; margin: 1em 0; background: #fafafa; }
+  table { border-collapse: collapse; margin: 1em 0; }
+  th, td { border: 1px solid #bbb; padding: 6px 10px; text-align: left; vertical-align: top; }
+  th { background: #f0f0f0; }
+  hr { border: none; border-top: 1px solid #ccc; margin: 2em 0; }
+  a { color: #0b5fa5; }
+</style></head><body>
+<h1>Guard / Gibor KeAri — Edit Board</h1>
+<blockquote>
+<p><strong>What this is.</strong> A live map of every screen, overlay, component, service, and setting in the mobile app. Each functionality has its own section with a blank <strong>Edits</strong> block where you write changes you want made. When pasted into Google Docs, every <code>##</code> becomes a heading that shows up in the <strong>Document outline</strong> sidebar — that gives you a clickable index that behaves like tabs.</p>
+<p><strong>How to use it.</strong>
+1. Paste this whole file into a new Google Doc (<code>File → Open → Upload</code>, or copy-paste). All headings, lists, and tables convert.
+2. Open the outline pane: <code>View → Show outline</code> (or <code>Ctrl+Alt+A</code> then <code>Ctrl+Alt+H</code>).
+3. Jump to any section. Write your edit notes under the <strong>Edits</strong> block. Leave <strong>Currently</strong> alone — it's the source-of-truth snapshot.
+4. When you want me to apply edits, point me at the section name (e.g. "apply the edits in <em>Coach tab</em> and <em>Personalization overlay</em>").</p>
+<p><strong>Last synced from code.</strong> 2026-05-03. If the codebase has moved on since then, the <strong>Currently</strong> blocks may be stale — re-sync before relying on them for big edits.</p>
+</blockquote>
+<hr />
+<h2>0. Document conventions</h2>
+<p>Every functional unit below uses the same five-block template:</p>
+<pre><code>### &lt;Name&gt;
+- Route / surface: &lt;how the user gets here&gt;
+- Files: &lt;real paths&gt;
+
+Currently:
+  &lt;factual snapshot of what it does today&gt;
+
+Edits:
+  &lt;BLANK — you write here&gt;
+
+Open questions:
+  &lt;BLANK — you write here&gt;
+</code></pre>
+<p>If a block is empty, leave it empty. Don't delete the headers — keeping them stable means I can grep for <code>### &lt;Name&gt;</code> and find your edits exactly.</p>
+<hr />
+<h1>Part A — App architecture at a glance</h1>
+<h2>A1. Tech stack</h2>
+<table>
+<thead>
+<tr>
+<th>Layer</th>
+<th>Tech</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Runtime</td>
+<td>Expo (React Native), TypeScript</td>
+</tr>
+<tr>
+<td>Styling</td>
+<td>NativeWind (Tailwind for RN) + a <code>theme.ts</code> token layer</td>
+</tr>
+<tr>
+<td>Animation</td>
+<td>Moti / Reanimated, Lucide icons</td>
+</tr>
+<tr>
+<td>State</td>
+<td>Zustand with <code>persist</code> → AsyncStorage</td>
+</tr>
+<tr>
+<td>Backend</td>
+<td>Supabase (auth, community, partner, forums, leaderboard)</td>
+</tr>
+<tr>
+<td>AI</td>
+<td>Provider-agnostic client in <code>src/services/aiClient.ts</code>; tool-call layer in <code>coachTools.ts</code> + <code>aiActions.ts</code></td>
+</tr>
+<tr>
+<td>OTA</td>
+<td>EAS Update (see <code>UpdateBanner.tsx</code>)</td>
+</tr>
+<tr>
+<td>Native push</td>
+<td><code>notificationService.ts</code></td>
+</tr>
+</tbody>
+</table>
+<h2>A2. Navigation model (the schema)</h2>
+<p>The app does <strong>not</strong> use React Navigation. Instead, <a href="src/navigation/Navigator.tsx">src/navigation/Navigator.tsx</a> holds two pieces of local state:</p>
+<ul>
+<li><code>activeTab</code> — one of 6 bottom-tab values</li>
+<li><code>overlay</code> — one of ~21 string keys, or <code>null</code></li>
+</ul>
+<p>Rendering rule: if <code>overlay !== null</code>, that overlay is shown full-screen and the bottom tab bar is hidden. Otherwise the active tab renders. Transitions are a Moti opacity + 10px translateX slide.</p>
+<pre><code>            ┌────────────────────────────────────────────┐
+            │              GuardApp (root)               │
+            │  ThemeManager · UpdateBanner · AlphaBanner │
+            └─────────────────────┬──────────────────────┘
+                                  │
+                  hasCompletedOnboarding ?
+                          │           │
+                       no │           │ yes
+                          ▼           ▼
+                   ┌──────────┐   ┌──────────────────┐
+                   │Onboarding│   │     Navigator    │
+                   └──────────┘   └────────┬─────────┘
+                                           │
+                              overlay !== null ?
+                              │              │
+                            no│              │ yes
+                              ▼              ▼
+                  ┌─────────────────┐   ┌────────────────┐
+                  │  Active Tab     │   │ Overlay screen │
+                  │ (1 of 6 below)  │   │ (full screen,  │
+                  └────────┬────────┘   │  no tab bar)   │
+                           │            └────────────────┘
+                           ▼
+                ┌──────── BottomTab ─────────┐
+                │ Home  Calendar  Coach      │
+                │ Learn  Circle   You        │
+                └────────────────────────────┘
+</code></pre>
+<h3>Tab → screen map</h3>
+<table>
+<thead>
+<tr>
+<th>Tab id</th>
+<th>Label</th>
+<th>Component</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>home</code></td>
+<td>Home</td>
+<td><a href="src/screens/Home.tsx">Home.tsx</a></td>
+</tr>
+<tr>
+<td><code>calendar</code></td>
+<td>Calendar</td>
+<td><a href="src/screens/Calendar.tsx">Calendar.tsx</a></td>
+</tr>
+<tr>
+<td><code>coach</code></td>
+<td>Coach</td>
+<td><a href="src/screens/Coach.tsx">Coach.tsx</a></td>
+</tr>
+<tr>
+<td><code>learn</code></td>
+<td>Learn</td>
+<td><a href="src/screens/Learn.tsx">Learn.tsx</a></td>
+</tr>
+<tr>
+<td><code>community</code></td>
+<td>Circle</td>
+<td><a href="src/screens/CommunityHubScreen.tsx">CommunityHubScreen.tsx</a></td>
+</tr>
+<tr>
+<td><code>profile</code></td>
+<td>You</td>
+<td><a href="src/screens/Profile.tsx">Profile.tsx</a></td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>Note: <code>tactics</code> exists in the <code>TabType</code> union but isn't in the bottom bar — Tactics is reached via Profile and the Home action grid. Worth deciding: keep this dual-route or collapse to one path. (See <em>Edits</em> in Tactics section.)</p>
+</blockquote>
+<h3>Overlay registry</h3>
+<p>These are the strings that <code>setOverlay()</code> accepts in <a href="src/navigation/Navigator.tsx">Navigator.tsx</a>. Each is its own section in Part C.</p>
+<p><code>reminders · mantras · rituals · data · personalization · why · watchlist · insights · aiconfig · tactics · learn · coach-style · community · community-setup · community-settings · auth · partner · leaderboard · forums · forum-thread · forum-compose</code></p>
+<h2>A3. Persistent state schema (Zustand store)</h2>
+<p>Defined in <a href="src/store/useStore.ts">src/store/useStore.ts</a>. Persisted to AsyncStorage. Two stores total:</p>
+<ol>
+<li><strong><code>useStore</code></strong> — the user's local state (the 12 axes + everything below)</li>
+<li><strong><code>useCommunityStore</code></strong> — Supabase-backed community state (<a href="src/store/useCommunityStore.ts">useCommunityStore.ts</a>)</li>
+</ol>
+<h3>The 12 personalization axes</h3>
+<table>
+<thead>
+<tr>
+<th>Axis</th>
+<th>Type</th>
+<th>Values</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Tone</td>
+<td><code>Tone</code></td>
+<td>gentle · harsh · spiritual · clinical · custom · null</td>
+</tr>
+<tr>
+<td>ReligiousLevel</td>
+<td><code>ReligiousLevel</code></td>
+<td>secular · traditional · modern-orthodox · chareidi · chassidish · baal-teshuva · other · custom · null</td>
+</tr>
+<tr>
+<td>MotivationStyle</td>
+<td><code>MotivationStyle</code></td>
+<td>incentive · punishment · mixed · pure-discipline · custom · null</td>
+</tr>
+<tr>
+<td>AccountabilityMode</td>
+<td><code>AccountabilityMode</code></td>
+<td>solo · partner · group · anonymous-community · sponsor · custom · null</td>
+</tr>
+<tr>
+<td>LifeStage</td>
+<td><code>LifeStage</code></td>
+<td>single · dating · engaged · married · married-kids · divorced · widowed · custom · null</td>
+</tr>
+<tr>
+<td>TriggerTag</td>
+<td><code>TriggerTag[]</code></td>
+<td>stress · loneliness · boredom · fatigue · visual · late-night · rejection · success · travel · conflict</td>
+</tr>
+<tr>
+<td>RiskTime</td>
+<td><code>RiskTime</code></td>
+<td>morning · midday · evening · late-night · custom · null</td>
+</tr>
+<tr>
+<td>RecoveryStage</td>
+<td><code>RecoveryStage</code></td>
+<td>day-one · restarting · maintenance · helping-friend · severe-relapse-rebuild · custom · null</td>
+</tr>
+<tr>
+<td>Intensity</td>
+<td><code>Intensity</code></td>
+<td>gentle · standard · hardcore · monk-mode · custom · null</td>
+</tr>
+<tr>
+<td>LearningStyle</td>
+<td><code>LearningStyle</code></td>
+<td>read · listen · watch · do · talk · custom · null</td>
+</tr>
+<tr>
+<td>PrivacyLevel</td>
+<td><code>PrivacyLevel</code></td>
+<td>fully-private · partner-aggregate · partner-detailed · anonymous-group · opt-in-leaderboard · custom · null</td>
+</tr>
+<tr>
+<td>Language</td>
+<td><code>Language</code></td>
+<td>en · he · yi · es · fr · custom · null</td>
+</tr>
+</tbody>
+</table>
+<h3>Coach-style sub-axes</h3>
+<p><code>MantraStyle</code> · <code>TacticPreference</code> · <code>CoachingApproach</code> · <code>TacticDuration</code> — used by Coach and Tactics screens to pick which content to surface.</p>
+<p>Edits to schema:
+  <BLANK></p>
+<p>Open questions:
+  <BLANK></p>
+<hr />
+<h1>Part B — Tab screens</h1>
+<h2>B1. Home tab</h2>
+<ul>
+<li>Route: bottom-tab <code>home</code> (default)</li>
+<li>Files: <a href="src/screens/Home.tsx">src/screens/Home.tsx</a> · uses <a href="src/components/PanicButton.tsx">PanicButton.tsx</a> · <a href="src/components/StreakIncentiveBar.tsx">StreakIncentiveBar.tsx</a> · <a href="src/components/CheckInModal.tsx">CheckInModal.tsx</a> · <a href="src/components/DangerMode.tsx">DangerMode.tsx</a></li>
+</ul>
+<p>Currently:
+  Landing surface after onboarding. Displays current streak, panic button, an action grid (Tactics, Mantras, Rituals, Coach), and conditional banners (UpdateBanner, AlphaBanner, A King's Reward incentive bar). Triggers CheckInModal at configured cadences. Reorganized in commit 49f84a3.</p>
+<p>Edits:
+  <BLANK></p>
+<p>Open questions:
+  <BLANK></p>
+<h2>B2. Calendar tab</h2>
+<ul>
+<li>Route: bottom-tab <code>calendar</code></li>
+<li>Files: <a href="src/screens/Calendar.tsx">src/screens/Calendar.tsx</a> · <a href="src/components/LogFallModal.tsx">LogFallModal.tsx</a></li>
+</ul>
+<p>Currently:
+  Day-grid view of clean days, falls, and check-ins. Tap a day to log a fall or note. Streak is computed from this data via <a href="src/hooks/useStreak.ts">useStreak.ts</a>.</p>
+<p>Edits:
+  <BLANK></p>
+<p>Open questions:
+  <BLANK></p>
+<h2>B3. Coach tab</h2>
+<ul>
+<li>Route: bottom-tab <code>coach</code></li>
+<li>Files: <a href="src/screens/Coach.tsx">src/screens/Coach.tsx</a> · <a href="src/services/aiClient.ts">services/aiClient.ts</a> · <a href="src/services/coachTools.ts">services/coachTools.ts</a> · <a href="src/services/aiActions.ts">services/aiActions.ts</a> · <a href="src/services/moderationAi.ts">services/moderationAi.ts</a></li>
+</ul>
+<p>Currently:
+  AI coach chat. Reads CoachStyle + the 12 axes to shape system prompt. Uses tool-calling (<code>coachTools.ts</code>) so the model can read the user's streak/falls/triggers and write back actions (<code>aiActions.ts</code>). <code>hasNewCoachMessage</code> flag drives the red dot on the bottom-tab Coach icon. Persistent coach memory landed in commit a3fcd03.</p>
+<p>Edits:
+  <BLANK></p>
+<p>Open questions:
+  <BLANK></p>
+<h2>B4. Learn tab</h2>
+<ul>
+<li>Route: bottom-tab <code>learn</code> (also reachable as overlay <code>learn</code> from Profile)</li>
+<li>Files: <a href="src/screens/Learn.tsx">src/screens/Learn.tsx</a> · <a href="src/constants/contentLibrary.ts">constants/contentLibrary.ts</a> · <a href="src/utils/contentSelector.ts">utils/contentSelector.ts</a></li>
+</ul>
+<p>Currently:
+  Curated library — Torah sources, neuroscience, recovery articles. <code>contentSelector.ts</code> filters by LearningStyle + ReligiousLevel + Intensity. Content is currently static in <code>contentLibrary.ts</code>.</p>
+<p>Edits:
+  <BLANK></p>
+<p>Open questions:
+  <BLANK></p>
+<h2>B5. Circle (Community) tab</h2>
+<ul>
+<li>Route: bottom-tab <code>community</code> → <code>CommunityHubScreen</code></li>
+<li>Files: <a href="src/screens/CommunityHubScreen.tsx">src/screens/CommunityHubScreen.tsx</a> · <a href="src/services/community.ts">services/community.ts</a> · <a href="src/store/useCommunityStore.ts">store/useCommunityStore.ts</a> · <a href="src/services/supabaseClient.ts">services/supabaseClient.ts</a></li>
+</ul>
+<p>Currently:
+  Hub that fans out to Auth, Setup, Settings, Partner, Forums, Leaderboard. Backed by Supabase. <code>bootstrapSupabase()</code> runs once on Navigator mount.</p>
+<p>Edits:
+  <BLANK></p>
+<p>Open questions:
+  <BLANK></p>
+<h2>B6. You (Profile) tab</h2>
+<ul>
+<li>Route: bottom-tab <code>profile</code></li>
+<li>Files: <a href="src/screens/Profile.tsx">src/screens/Profile.tsx</a></li>
+</ul>
+<p>Currently:
+  Settings hub. Renders user header (Avatar, displayName, memberSince, totalFallCount, streak), badge progression (7/14/30/60/90/180/365), then a long list of <code>onNavigateTo*</code> rows that each open one of the overlays in Part C. Also hosts feedback/bug-report (<code>services/feedback.ts</code>), data export, and reset.</p>
+<p>Edits:
+  <BLANK></p>
+<p>Open questions:
+  <BLANK></p>
+<hr />
+<h1>Part C — Overlay screens (settings + deep features)</h1>
+<p>These render full-screen above the active tab; the bottom-tab bar disappears while one is open.</p>
+<h2>C1. Reminders</h2>
+<ul>
+<li>Overlay key: <code>reminders</code> · opened from Profile</li>
+<li>Files: <a href="src/screens/ReminderSettingsScreen.tsx">src/screens/ReminderSettingsScreen.tsx</a> · <a href="src/services/notificationService.ts">services/notificationService.ts</a></li>
+</ul>
+<p>Currently:
+  Configure local push reminders (frequency, quiet hours, content tone). Times are stored on the user object; native scheduling is via <code>notificationService.ts</code>.</p>
+<p>Edits:
+  <BLANK></p>
+<p>Open questions:
+  <BLANK></p>
+<h2>C2. Mantras</h2>
+<ul>
+<li>Overlay key: <code>mantras</code> · opened from Profile + Home action grid</li>
+<li>Files: <a href="src/screens/MantraBuilder.tsx">src/screens/MantraBuilder.tsx</a></li>
+</ul>
+<p>Currently:
+  Create/edit personal mantras. Each mantra has a <code>MantraStyle</code> (warrior · torah · clinical · compassionate · short-punch · reflective). Surfaced by Coach and on Home.</p>
+<p>Edits:
+  <BLANK></p>
+<p>Open questions:
+  <BLANK></p>
+<h2>C3. Rituals</h2>
+<ul>
+<li>Overlay key: <code>rituals</code> · opened from Profile + Home action grid</li>
+<li>Files: <a href="src/screens/RitualBuilder.tsx">src/screens/RitualBuilder.tsx</a></li>
+</ul>
+<p>Currently:
+  User-defined recovery rituals (e.g. morning Shema + cold shower + journal). Each ritual is a step list with a trigger context (RiskTime, TriggerTag).</p>
+<p>Edits:
+  <BLANK></p>
+<p>Open questions:
+  <BLANK></p>
+<h2>C4. Your Data</h2>
+<ul>
+<li>Overlay key: <code>data</code> · opened from Profile</li>
+<li>Files: <a href="src/screens/YourDataScreen.tsx">src/screens/YourDataScreen.tsx</a></li>
+</ul>
+<p>Currently:
+  Privacy-focused export/inspect view. Shows what's persisted locally vs synced to Supabase. Honors <code>PrivacyLevel</code>. Includes data delete.</p>
+<p>Edits:
+  <BLANK></p>
+<p>Open questions:
+  <BLANK></p>
+<h2>C5. Personalization</h2>
+<ul>
+<li>Overlay key: <code>personalization</code> · opened from Profile</li>
+<li>Files: <a href="src/screens/PersonalizationScreen.tsx">src/screens/PersonalizationScreen.tsx</a></li>
+</ul>
+<p>Currently:
+  Master editor for the 12 axes. Each axis has its own section with the values listed in Part A3. Custom values flow to <code>*-custom</code> text fields.</p>
+<p>Edits:
+  <BLANK></p>
+<p>Open questions:
+  <BLANK></p>
+<h2>C6. Your Why</h2>
+<ul>
+<li>Overlay key: <code>why</code> · opened from Profile</li>
+<li>Files: <a href="src/screens/YourWhyScreen.tsx">src/screens/YourWhyScreen.tsx</a> · <a href="src/screens/VowScreen.tsx">src/screens/VowScreen.tsx</a></li>
+</ul>
+<p>Currently:
+  The user's reason-for-recovery and Vow text. The vow is referenced by Coach prompts and shown during PostFallProtocol.</p>
+<p>Edits:
+  <BLANK></p>
+<p>Open questions:
+  <BLANK></p>
+<h2>C7. Watchlist</h2>
+<ul>
+<li>Overlay key: <code>watchlist</code> · opened from Profile</li>
+<li>Files: <a href="src/screens/WatchlistScreen.tsx">src/screens/WatchlistScreen.tsx</a> · <a href="src/screens/RiskyAppsSettings.tsx">src/screens/RiskyAppsSettings.tsx</a></li>
+</ul>
+<p>Currently:
+  User-flagged risky apps/sites. Used by pattern engine and reminders. (Native blocking is out of scope; this is awareness-only.)</p>
+<p>Edits:
+  <BLANK></p>
+<p>Open questions:
+  <BLANK></p>
+<h2>C8. Pattern Insights</h2>
+<ul>
+<li>Overlay key: <code>insights</code> · opened from Profile</li>
+<li>Files: <a href="src/screens/PatternInsightsScreen.tsx">src/screens/PatternInsightsScreen.tsx</a> · <a href="src/utils/patternEngine.ts">utils/patternEngine.ts</a></li>
+</ul>
+<p>Currently:
+  Reads fall log + check-ins to surface patterns (most-common RiskTime, top TriggerTags, day-of-week distributions). Pure-client analytics — no backend call.</p>
+<p>Edits:
+  <BLANK></p>
+<p>Open questions:
+  <BLANK></p>
+<h2>C9. AI Coach Config</h2>
+<ul>
+<li>Overlay key: <code>aiconfig</code> · opened from Profile</li>
+<li>Files: <a href="src/screens/AiCoachConfigScreen.tsx">src/screens/AiCoachConfigScreen.tsx</a> · <a href="src/services/aiClient.ts">services/aiClient.ts</a> · <a href="src/services/_builtinKey.ts">services/_builtinKey.ts</a></li>
+</ul>
+<p>Currently:
+  Choose model/provider, BYOK or use bundled key, set safety toggles. Key rotation landed in commit a3fcd03.</p>
+<p>Edits:
+  <BLANK></p>
+<p>Open questions:
+  <BLANK></p>
+<h2>C10. Tactics</h2>
+<ul>
+<li>Overlay key: <code>tactics</code> · also reached as a (hidden) tab and from Home action grid</li>
+<li>Files: <a href="src/screens/TacticsSettingsScreen.tsx">src/screens/TacticsSettingsScreen.tsx</a></li>
+</ul>
+<p>Currently:
+  Library of urge-management tactics filterable by <code>TacticPreference</code> (physical · cognitive · social · spiritual · environmental · breathwork) and <code>TacticDuration</code> (instant · 2min · 5min · 10min+). Effectiveness rating per tactic landed in commit 74db04e.</p>
+<p>Edits:
+  <BLANK></p>
+<p>Open questions:
+  <BLANK></p>
+<h2>C11. Coach Style</h2>
+<ul>
+<li>Overlay key: <code>coach-style</code> · opened from Profile</li>
+<li>Files: <a href="src/screens/CoachStyleScreen.tsx">src/screens/CoachStyleScreen.tsx</a></li>
+</ul>
+<p>Currently:
+  Picks <code>CoachingApproach</code> (drill-sergeant · warm-mentor · accountability · clinical · spiritual · socratic) plus voice tone modifiers. Coach reads this on every send.</p>
+<p>Edits:
+  <BLANK></p>
+<p>Open questions:
+  <BLANK></p>
+<h2>C12. Community Setup</h2>
+<ul>
+<li>Overlay key: <code>community-setup</code></li>
+<li>Files: <a href="src/screens/CommunitySetupScreen.tsx">src/screens/CommunitySetupScreen.tsx</a></li>
+</ul>
+<p>Currently:
+  First-time community onboarding — handle, anonymity preference, partner code generation.</p>
+<p>Edits:
+  <BLANK></p>
+<p>Open questions:
+  <BLANK></p>
+<h2>C13. Community Settings</h2>
+<ul>
+<li>Overlay key: <code>community-settings</code></li>
+<li>Files: <a href="src/screens/CommunitySettingsScreen.tsx">src/screens/CommunitySettingsScreen.tsx</a></li>
+</ul>
+<p>Currently:
+  Edit community profile, leave/rejoin, blocklist.</p>
+<p>Edits:
+  <BLANK></p>
+<p>Open questions:
+  <BLANK></p>
+<h2>C14. Auth</h2>
+<ul>
+<li>Overlay key: <code>auth</code></li>
+<li>Files: <a href="src/screens/AuthScreen.tsx">src/screens/AuthScreen.tsx</a> · <a href="src/services/supabaseClient.ts">services/supabaseClient.ts</a></li>
+</ul>
+<p>Currently:
+  Email magic-link / OAuth. Required for any feature in <code>useCommunityStore</code>. App is fully usable without auth (solo mode).</p>
+<p>Edits:
+  <BLANK></p>
+<p>Open questions:
+  <BLANK></p>
+<h2>C15. Partner</h2>
+<ul>
+<li>Overlay key: <code>partner</code></li>
+<li>Files: <a href="src/screens/PartnerScreen.tsx">src/screens/PartnerScreen.tsx</a></li>
+</ul>
+<p>Currently:
+  Pair with one accountability partner via code. Partner sees aggregate or detailed data depending on <code>PrivacyLevel</code>. Partner reload loop fix landed in commit 49f84a3.</p>
+<p>Edits:
+  <BLANK></p>
+<p>Open questions:
+  <BLANK></p>
+<h2>C16. Leaderboard</h2>
+<ul>
+<li>Overlay key: <code>leaderboard</code></li>
+<li>Files: <a href="src/screens/LeaderboardScreen.tsx">src/screens/LeaderboardScreen.tsx</a></li>
+</ul>
+<p>Currently:
+  Opt-in only (<code>PrivacyLevel === 'opt-in-leaderboard'</code>). Anonymous handle + streak.</p>
+<p>Edits:
+  <BLANK></p>
+<p>Open questions:
+  <BLANK></p>
+<h2>C17. Forums (list)</h2>
+<ul>
+<li>Overlay key: <code>forums</code></li>
+<li>Files: <a href="src/screens/ForumsListScreen.tsx">src/screens/ForumsListScreen.tsx</a></li>
+</ul>
+<p>Currently:
+  List of forum boards and recent posts. Tap a post → <code>forum-thread</code>. Compose → <code>forum-compose</code>.</p>
+<p>Edits:
+  <BLANK></p>
+<p>Open questions:
+  <BLANK></p>
+<h2>C18. Forum thread</h2>
+<ul>
+<li>Overlay key: <code>forum-thread</code></li>
+<li>Files: <a href="src/screens/ForumThreadScreen.tsx">src/screens/ForumThreadScreen.tsx</a></li>
+</ul>
+<p>Currently:
+  Single thread view + replies. Moderation runs through <code>moderationAi.ts</code>.</p>
+<p>Edits:
+  <BLANK></p>
+<p>Open questions:
+  <BLANK></p>
+<h2>C19. Forum compose</h2>
+<ul>
+<li>Overlay key: <code>forum-compose</code></li>
+<li>Files: <a href="src/screens/ForumComposeScreen.tsx">src/screens/ForumComposeScreen.tsx</a></li>
+</ul>
+<p>Currently:
+  Compose new post or reply. Mode is set by caller (<code>'forum'</code> for top-level, <code>'post'</code> for reply).</p>
+<p>Edits:
+  <BLANK></p>
+<p>Open questions:
+  <BLANK></p>
+<hr />
+<h1>Part D — Cross-cutting components</h1>
+<h2>D1. Onboarding flow</h2>
+<ul>
+<li>Files: <a href="src/screens/Onboarding.tsx">src/screens/Onboarding.tsx</a></li>
+</ul>
+<p>Currently:
+  Runs once when <code>hasCompletedOnboarding</code> is false. Trimmed in commit 49f84a3 — collects identity, ReligiousLevel, RecoveryStage, top triggers, vow. Skips the rest (those go to defaults; user can edit later in Personalization).</p>
+<p>Edits:
+  <BLANK></p>
+<p>Open questions:
+  <BLANK></p>
+<h2>D2. Panic Button + Emergency Countdown</h2>
+<ul>
+<li>Files: <a href="src/components/PanicButton.tsx">PanicButton.tsx</a> · <a href="src/components/EmergencyCountdown.tsx">EmergencyCountdown.tsx</a> · <a href="src/components/CloseCallProtocol.tsx">CloseCallProtocol.tsx</a> · <a href="src/components/PostFallProtocol.tsx">PostFallProtocol.tsx</a></li>
+</ul>
+<p>Currently:
+  Panic button on Home triggers a countdown overlay with the user's top tactic + mantra. After countdown: choose "Won" (CloseCallProtocol — celebrates, logs check-in) or "Fell" (PostFallProtocol — vow re-read, journal, restart streak).</p>
+<p>Edits:
+  <BLANK></p>
+<p>Open questions:
+  <BLANK></p>
+<h2>D3. Check-In Modal</h2>
+<ul>
+<li>Files: <a href="src/components/CheckInModal.tsx">CheckInModal.tsx</a></li>
+</ul>
+<p>Currently:
+  Auto-prompts at user-configured cadence. Quick mood/risk capture used by patternEngine.</p>
+<p>Edits:
+  <BLANK></p>
+<p>Open questions:
+  <BLANK></p>
+<h2>D4. Danger Mode</h2>
+<ul>
+<li>Files: <a href="src/components/DangerMode.tsx">DangerMode.tsx</a> · <a href="src/components/PunishmentModeWrapper.tsx">PunishmentModeWrapper.tsx</a> · <a href="src/screens/PunishmentSettingsScreen.tsx">PunishmentSettingsScreen.tsx</a></li>
+</ul>
+<p>Currently:
+  When <code>MotivationStyle</code> includes <code>'punishment'</code> or <code>'mixed'</code>, this wraps the app in a stricter visual + interaction mode (cooldowns, locked features). Configured in PunishmentSettingsScreen.</p>
+<p>Edits:
+  <BLANK></p>
+<p>Open questions:
+  <BLANK></p>
+<h2>D5. Streak / Milestone</h2>
+<ul>
+<li>Files: <a href="src/components/StreakIncentiveBar.tsx">StreakIncentiveBar.tsx</a> · <a href="src/components/MilestoneCelebration.tsx">MilestoneCelebration.tsx</a> · <a href="src/hooks/useStreak.ts">hooks/useStreak.ts</a></li>
+</ul>
+<p>Currently:
+  Streak bar shows current streak + next badge target ("A King's Reward" framing landed in commit 49f84a3). MilestoneCelebration fires at 7/14/30/60/90/180/365.</p>
+<p>Edits:
+  <BLANK></p>
+<p>Open questions:
+  <BLANK></p>
+<h2>D6. Theme system</h2>
+<ul>
+<li>Files: <a href="src/components/ThemeManager.tsx">ThemeManager.tsx</a> · <a href="src/constants/theme.ts">constants/theme.ts</a> · <a href="App.tsx">App.tsx</a> (ThemedStatusBar)</li>
+</ul>
+<p>Currently:
+  Light/dark theme with <code>themePreference</code> stored in store ('light' · 'dark' · 'system'). WCAG AA contrast pass landed in commit 4d90e42. StatusBar follows app theme, not OS theme.</p>
+<p>Edits:
+  <BLANK></p>
+<p>Open questions:
+  <BLANK></p>
+<h2>D7. Update / Alpha banners</h2>
+<ul>
+<li>Files: <a href="src/components/UpdateBanner.tsx">UpdateBanner.tsx</a> · <a href="src/components/AlphaBanner.tsx">AlphaBanner.tsx</a> · <a href="src/components/SplashScreen.tsx">SplashScreen.tsx</a> · <a href="src/components/LionMark.tsx">LionMark.tsx</a> · <a href="src/buildInfo.ts">buildInfo.ts</a></li>
+</ul>
+<p>Currently:
+  UpdateBanner triggers EAS Update fetch; AlphaBanner shows pre-release messaging; SplashScreen + LionMark are first-run visuals.</p>
+<p>Edits:
+  <BLANK></p>
+<p>Open questions:
+  <BLANK></p>
+<hr />
+<h1>Part E — Services / integrations</h1>
+<h2>E1. AI client + tool layer</h2>
+<ul>
+<li>Files: <a href="src/services/aiClient.ts">services/aiClient.ts</a> · <a href="src/services/aiService.ts">services/aiService.ts</a> · <a href="src/services/coachTools.ts">services/coachTools.ts</a> · <a href="src/services/aiActions.ts">services/aiActions.ts</a> · <a href="src/services/moderationAi.ts">services/moderationAi.ts</a> · <a href="src/services/_builtinKey.ts">services/_builtinKey.ts</a></li>
+</ul>
+<p>Currently:
+  Provider-agnostic chat completion with tool-call support. <code>coachTools.ts</code> exposes read/write tools to the model (read streak, read triggers, append journal, set reminder, etc.). <code>moderationAi.ts</code> runs on community/forum content. <code>_builtinKey.ts</code> holds the rotated bundled key.</p>
+<p>Edits:
+  <BLANK></p>
+<p>Open questions:
+  <BLANK></p>
+<h2>E2. Supabase / community</h2>
+<ul>
+<li>Files: <a href="src/services/supabaseClient.ts">services/supabaseClient.ts</a> · <a href="src/services/supabaseConfig.ts">services/supabaseConfig.ts</a> · <a href="src/services/community.ts">services/community.ts</a> · <a href="src/store/useCommunityStore.ts">store/useCommunityStore.ts</a></li>
+</ul>
+<p>Currently:
+  Single Supabase project. Tables back: profiles, partners, forums, posts, replies, leaderboard. Schema: see <code>community.ts</code> for the canonical reads/writes.</p>
+<p>Edits:
+  <BLANK></p>
+<p>Open questions:
+  <BLANK></p>
+<h2>E3. Notifications</h2>
+<ul>
+<li>Files: <a href="src/services/notificationService.ts">services/notificationService.ts</a></li>
+</ul>
+<p>Currently:
+  Local notifications only (no remote push). Schedules reminders based on <code>ReminderSettingsScreen</code> config.</p>
+<p>Edits:
+  <BLANK></p>
+<p>Open questions:
+  <BLANK></p>
+<h2>E4. Feedback / bug report</h2>
+<ul>
+<li>Files: <a href="src/services/feedback.ts">services/feedback.ts</a> · <code>sendFeedback</code> and <code>reportBug</code> called from Profile</li>
+</ul>
+<p>Currently:
+  Sends user-submitted feedback or bug reports to the backend.</p>
+<p>Edits:
+  <BLANK></p>
+<p>Open questions:
+  <BLANK></p>
+<hr />
+<h1>Part F — Settings deep dive</h1>
+<p>This is the section to use when you want to edit <em>settings</em>, not whole features. It cross-references which screens read/write each setting.</p>
+<table>
+<thead>
+<tr>
+<th>Setting</th>
+<th>Stored as</th>
+<th>Edited in</th>
+<th>Read by</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Display name</td>
+<td><code>displayName</code></td>
+<td>Profile (inline) · Onboarding</td>
+<td>Profile header · Coach prompt · Community</td>
+</tr>
+<tr>
+<td>Tone</td>
+<td><code>tone</code></td>
+<td>Personalization</td>
+<td>Coach prompt · Reminder copy · Mantras</td>
+</tr>
+<tr>
+<td>ReligiousLevel</td>
+<td><code>religiousLevel</code></td>
+<td>Onboarding · Personalization</td>
+<td>Coach prompt · Learn filter · Mantras (torah style)</td>
+</tr>
+<tr>
+<td>MotivationStyle</td>
+<td><code>motivationStyle</code></td>
+<td>Personalization</td>
+<td>DangerMode wrapper · Streak bar copy · Coach</td>
+</tr>
+<tr>
+<td>AccountabilityMode</td>
+<td><code>accountabilityMode</code></td>
+<td>Personalization · Community Setup</td>
+<td>Circle hub · Partner</td>
+</tr>
+<tr>
+<td>LifeStage</td>
+<td><code>lifeStage</code></td>
+<td>Personalization</td>
+<td>Coach prompt · Learn filter</td>
+</tr>
+<tr>
+<td>TriggerTag[]</td>
+<td><code>triggers</code></td>
+<td>Onboarding · Personalization · CheckInModal</td>
+<td>Pattern Insights · Coach · Tactics filter</td>
+</tr>
+<tr>
+<td>RiskTime</td>
+<td><code>riskTime</code></td>
+<td>Personalization · Pattern Insights (auto-suggest)</td>
+<td>Reminders default · Tactics ordering</td>
+</tr>
+<tr>
+<td>RecoveryStage</td>
+<td><code>recoveryStage</code></td>
+<td>Onboarding · Personalization</td>
+<td>Coach prompt · onboarding skip logic</td>
+</tr>
+<tr>
+<td>Intensity</td>
+<td><code>intensity</code></td>
+<td>Personalization</td>
+<td>DangerMode · Tactics filter · Reminder cadence</td>
+</tr>
+<tr>
+<td>LearningStyle</td>
+<td><code>learningStyle</code></td>
+<td>Personalization</td>
+<td>Learn content selector</td>
+</tr>
+<tr>
+<td>PrivacyLevel</td>
+<td><code>privacyLevel</code></td>
+<td>Your Data · Community Settings</td>
+<td>Partner detail-level · Leaderboard opt-in · sync gate</td>
+</tr>
+<tr>
+<td>Language</td>
+<td><code>language</code></td>
+<td>Personalization</td>
+<td>All copy</td>
+</tr>
+<tr>
+<td>Theme</td>
+<td><code>themePreference</code></td>
+<td>Profile / settings</td>
+<td>ThemeManager · StatusBar</td>
+</tr>
+<tr>
+<td>AI provider/key</td>
+<td>aiconfig fields</td>
+<td>AI Coach Config</td>
+<td>aiClient.ts</td>
+</tr>
+<tr>
+<td>Reminder schedule</td>
+<td>reminder fields</td>
+<td>Reminder Settings</td>
+<td>notificationService</td>
+</tr>
+<tr>
+<td>Risky apps</td>
+<td>watchlist array</td>
+<td>Watchlist</td>
+<td>Pattern engine · Reminders</td>
+</tr>
+<tr>
+<td>Mantras</td>
+<td>mantras array</td>
+<td>Mantra Builder</td>
+<td>Home · Coach · Panic</td>
+</tr>
+<tr>
+<td>Rituals</td>
+<td>rituals array</td>
+<td>Ritual Builder</td>
+<td>Home · Coach</td>
+</tr>
+<tr>
+<td>Tactics prefs</td>
+<td>TacticPreference[] · TacticDuration</td>
+<td>Tactics Settings</td>
+<td>Tactics screen ordering · Panic</td>
+</tr>
+<tr>
+<td>Coach style</td>
+<td>CoachingApproach · MantraStyle</td>
+<td>Coach Style</td>
+<td>Coach prompt</td>
+</tr>
+</tbody>
+</table>
+<p>Edits to settings UX (cross-cutting):
+  <BLANK></p>
+<p>Open questions:
+  <BLANK></p>
+<hr />
+<h1>Part G — Cross-cutting / open edits</h1>
+<p>Use this section for changes that span multiple screens (e.g. "tighten the entire onboarding by 30%", "rename 'Circle' back to 'Community' everywhere", "introduce a new axis").</p>
+<h2>G1. Naming / copy</h2>
+<p>Edits:
+  <BLANK></p>
+<h2>G2. New features / axes to add</h2>
+<p>Edits:
+  <BLANK></p>
+<h2>G3. Things to remove or hide</h2>
+<p>Edits:
+  <BLANK></p>
+<h2>G4. Bugs / regressions to investigate</h2>
+<p>Edits:
+  <BLANK></p>
+<h2>G5. Anything else</h2>
+<p>Edits:
+  <BLANK></p>
+<hr />
+<h1>Appendix — file index</h1>
+<p>Generated 2026-05-03 from <code>src/**/*.{ts,tsx}</code>. Use this to grep for what to edit.</p>
+<p><strong>Screens</strong> (<a href="src/screens/">src/screens/</a>)
+- Home · Calendar · Coach · Learn · Profile · Onboarding · VowScreen
+- ReminderSettingsScreen · MantraBuilder · RitualBuilder · YourDataScreen · PersonalizationScreen · YourWhyScreen · WatchlistScreen · RiskyAppsSettings · PatternInsightsScreen · AiCoachConfigScreen · TacticsSettingsScreen · PunishmentSettingsScreen · CoachStyleScreen
+- CommunityHubScreen · CommunitySetupScreen · CommunitySettingsScreen · AuthScreen · PartnerScreen · LeaderboardScreen · ForumsListScreen · ForumThreadScreen · ForumComposeScreen</p>
+<p><strong>Components</strong> (<a href="src/components/">src/components/</a>)
+- BottomTab · Screen · Avatar · LionMark · SplashScreen · ThemeManager
+- PanicButton · EmergencyCountdown · CheckInModal · DangerMode · PunishmentModeWrapper · LogFallModal · MilestoneCelebration · StreakIncentiveBar · CloseCallProtocol · PostFallProtocol
+- UpdateBanner · AlphaBanner · PrivacyNote</p>
+<p><strong>Stores</strong> (<a href="src/store/">src/store/</a>)
+- useStore · useCommunityStore</p>
+<p><strong>Services</strong> (<a href="src/services/">src/services/</a>)
+- aiClient · aiService · aiActions · coachTools · moderationAi · _builtinKey · supabaseClient · supabaseConfig · community · notificationService · feedback</p>
+<p><strong>Hooks / utils</strong>
+- <a href="src/hooks/useStreak.ts">hooks/useStreak.ts</a> · <a href="src/utils/patternEngine.ts">utils/patternEngine.ts</a> · <a href="src/utils/contentSelector.ts">utils/contentSelector.ts</a> · <a href="src/utils/formatters.ts">utils/formatters.ts</a></p>
+<p><strong>Constants</strong>
+- <a href="src/constants/theme.ts">constants/theme.ts</a> · <a href="src/constants/contentLibrary.ts">constants/contentLibrary.ts</a></p>
+<p><strong>Navigation / root</strong>
+- <a href="src/App.tsx">src/App.tsx</a> · <a href="src/navigation/Navigator.tsx">src/navigation/Navigator.tsx</a> · <a href="App.tsx">App.tsx</a> · <a href="src/buildInfo.ts">src/buildInfo.ts</a></p>
+</body></html>

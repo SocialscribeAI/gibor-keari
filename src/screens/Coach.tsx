@@ -16,6 +16,7 @@ import { PrivacyNote } from '../components/PrivacyNote';
 import { useStore } from '../store/useStore';
 import { isAiConfigured } from '../services/aiService';
 import { generateCoachReply, countRecent } from '../services/aiActions';
+import { useTheme } from '../constants/theme';
 
 interface Message {
   id: string;
@@ -28,6 +29,7 @@ interface Props {
 }
 
 export const Coach: React.FC<Props> = ({ onNavigateToAiConfig }) => {
+  const theme = useTheme();
   const {
     personalityProfile,
     lightsOutTime,
@@ -236,7 +238,7 @@ export const Coach: React.FC<Props> = ({ onNavigateToAiConfig }) => {
           {loading && (
             <View
               className="self-start mb-3 p-4 rounded-2xl flex-row items-center"
-              style={{ backgroundColor: 'rgba(44,62,122,0.2)', gap: 8 }}
+              style={{ backgroundColor: theme.surface, gap: 8 }}
             >
               <ActivityIndicator size="small" color="#E8A020" />
               <Text className="text-white/60 text-xs">Coach is thinking…</Text>
@@ -249,7 +251,7 @@ export const Coach: React.FC<Props> = ({ onNavigateToAiConfig }) => {
             value={input}
             onChangeText={setInput}
             placeholder="Type to Coach…"
-            placeholderTextColor="rgba(255,255,255,0.3)"
+            placeholderTextColor={theme.textDim}
             multiline
             editable={!loading}
             className="flex-1 bg-guard-surface border border-guard-primary/30 rounded-2xl px-4 py-3 text-white max-h-32"

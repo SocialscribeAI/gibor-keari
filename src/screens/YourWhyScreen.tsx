@@ -3,6 +3,7 @@ import { View, Text, Pressable, TextInput, ScrollView } from 'react-native';
 import { MotiView } from 'moti';
 import { ChevronLeft, Plus, X, Check, Edit3, Flame, Heart, AlertTriangle, Shield } from 'lucide-react-native';
 import { Screen } from '../components/Screen';
+import { useTheme } from '../constants/theme';
 import { useStore, type MilestoneRung } from '../store/useStore';
 
 // =============================================================================
@@ -15,6 +16,7 @@ interface Props {
 }
 
 export const YourWhyScreen: React.FC<Props> = ({ onBack }) => {
+  const theme = useTheme();
   const {
     identityStatement,
     costBenefit,
@@ -75,7 +77,7 @@ export const YourWhyScreen: React.FC<Props> = ({ onBack }) => {
         <Pressable
           onPress={onBack}
           className="w-10 h-10 rounded-full items-center justify-center mr-3"
-          style={{ backgroundColor: 'rgba(255,255,255,0.06)' }}
+          style={{ backgroundColor: theme.hairline }}
         >
           <ChevronLeft size={18} color="white" />
         </Pressable>
@@ -100,10 +102,10 @@ export const YourWhyScreen: React.FC<Props> = ({ onBack }) => {
                 onChangeText={setIdentityDraft}
                 multiline
                 placeholder="I am a man of my word. I am a father my kids can trust."
-                placeholderTextColor="rgba(255,255,255,0.3)"
+                placeholderTextColor={theme.textDim}
                 className="text-white rounded-2xl px-4 py-3"
                 style={{
-                  backgroundColor: '#1A1E35',
+                  backgroundColor: theme.surface,
                   borderWidth: 1,
                   borderColor: '#E8A020',
                   minHeight: 80,
@@ -116,10 +118,10 @@ export const YourWhyScreen: React.FC<Props> = ({ onBack }) => {
               <Pressable
                 onPress={saveIdentity}
                 className="rounded-2xl py-3 items-center mt-3 flex-row justify-center"
-                style={{ backgroundColor: '#E8A020' }}
+                style={{ backgroundColor: theme.accent }}
               >
                 <Check size={16} color="#0F1326" />
-                <Text className="text-guard-bg font-black uppercase tracking-widest ml-2">Lock it in</Text>
+                <Text className="text-guard-on-accent font-black uppercase tracking-widest ml-2">Lock it in</Text>
               </Pressable>
             </>
           ) : (
@@ -176,13 +178,13 @@ export const YourWhyScreen: React.FC<Props> = ({ onBack }) => {
                   </Pressable>
                 </View>
               ))}
-              <View className="flex-row items-center rounded-xl mt-1" style={{ backgroundColor: '#1A1E35' }}>
+              <View className="flex-row items-center rounded-xl mt-1" style={{ backgroundColor: theme.surface }}>
                 <TextInput
                   value={newCost}
                   onChangeText={setNewCost}
                   onSubmitEditing={addCost}
                   placeholder="Add..."
-                  placeholderTextColor="rgba(255,255,255,0.3)"
+                  placeholderTextColor={theme.textDim}
                   className="flex-1 text-white px-3 py-2 text-xs"
                 />
                 <Pressable onPress={addCost} className="px-2">
@@ -215,13 +217,13 @@ export const YourWhyScreen: React.FC<Props> = ({ onBack }) => {
                   </Pressable>
                 </View>
               ))}
-              <View className="flex-row items-center rounded-xl mt-1" style={{ backgroundColor: '#1A1E35' }}>
+              <View className="flex-row items-center rounded-xl mt-1" style={{ backgroundColor: theme.surface }}>
                 <TextInput
                   value={newBenefit}
                   onChangeText={setNewBenefit}
                   onSubmitEditing={addBenefit}
                   placeholder="Add..."
-                  placeholderTextColor="rgba(255,255,255,0.3)"
+                  placeholderTextColor={theme.textDim}
                   className="flex-1 text-white px-3 py-2 text-xs"
                 />
                 <Pressable onPress={addBenefit} className="px-2">
@@ -275,6 +277,7 @@ interface RungProps {
 }
 
 const MilestoneRungCard: React.FC<RungProps> = ({ rung, currentStreak, isLast, onEdit }) => {
+  const theme = useTheme();
   const [editing, setEditing] = useState(false);
   const [labelDraft, setLabelDraft] = useState(rung.label);
   const [meaningDraft, setMeaningDraft] = useState(rung.meaning);
@@ -298,9 +301,9 @@ const MilestoneRungCard: React.FC<RungProps> = ({ rung, currentStreak, isLast, o
       animate={{ opacity: 1, translateY: 0 }}
       className="rounded-2xl p-4 mb-3"
       style={{
-        backgroundColor: reached ? 'rgba(232,160,32,0.1)' : '#1A1E35',
+        backgroundColor: reached ? 'rgba(232,160,32,0.1)' : theme.surface,
         borderWidth: 1,
-        borderColor: reached ? 'rgba(232,160,32,0.4)' : 'rgba(44,62,122,0.3)',
+        borderColor: reached ? 'rgba(232,160,32,0.4)' : theme.hairline,
       }}
     >
       <View className="flex-row items-center">
@@ -338,13 +341,13 @@ const MilestoneRungCard: React.FC<RungProps> = ({ rung, currentStreak, isLast, o
         <View className="mt-3">
           <View
             className="h-1 rounded-full overflow-hidden"
-            style={{ backgroundColor: 'rgba(255,255,255,0.06)' }}
+            style={{ backgroundColor: theme.hairline }}
           >
             <View
               style={{
                 width: `${progress * 100}%`,
                 height: '100%',
-                backgroundColor: '#E8A020',
+                backgroundColor: theme.accent,
               }}
             />
           </View>
@@ -367,7 +370,7 @@ const MilestoneRungCard: React.FC<RungProps> = ({ rung, currentStreak, isLast, o
             onChangeText={setLabelDraft}
             className="text-white rounded-xl px-3 py-2 mb-2"
             style={{
-              backgroundColor: 'rgba(255,255,255,0.04)',
+              backgroundColor: theme.hairline,
               borderWidth: 1,
               borderColor: 'rgba(232,160,32,0.3)',
               fontSize: 13,
@@ -379,7 +382,7 @@ const MilestoneRungCard: React.FC<RungProps> = ({ rung, currentStreak, isLast, o
             onChangeText={setMeaningDraft}
             className="text-white rounded-xl px-3 py-2 mb-2"
             style={{
-              backgroundColor: 'rgba(255,255,255,0.04)',
+              backgroundColor: theme.hairline,
               borderWidth: 1,
               borderColor: 'rgba(232,160,32,0.3)',
               fontSize: 13,
@@ -392,10 +395,10 @@ const MilestoneRungCard: React.FC<RungProps> = ({ rung, currentStreak, isLast, o
             value={rewardDraft}
             onChangeText={setRewardDraft}
             placeholder="e.g. new book, dinner out"
-            placeholderTextColor="rgba(255,255,255,0.3)"
+            placeholderTextColor={theme.textDim}
             className="text-white rounded-xl px-3 py-2 mb-3"
             style={{
-              backgroundColor: 'rgba(255,255,255,0.04)',
+              backgroundColor: theme.hairline,
               borderWidth: 1,
               borderColor: 'rgba(232,160,32,0.3)',
               fontSize: 13,
@@ -404,9 +407,9 @@ const MilestoneRungCard: React.FC<RungProps> = ({ rung, currentStreak, isLast, o
           <Pressable
             onPress={save}
             className="rounded-xl py-2 items-center"
-            style={{ backgroundColor: '#E8A020' }}
+            style={{ backgroundColor: theme.accent }}
           >
-            <Text className="text-guard-bg font-black text-xs uppercase tracking-widest">Save</Text>
+            <Text className="text-guard-on-accent font-black text-xs uppercase tracking-widest">Save</Text>
           </Pressable>
         </MotiView>
       )}

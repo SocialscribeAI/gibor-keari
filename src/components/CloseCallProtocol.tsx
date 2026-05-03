@@ -4,6 +4,7 @@ import { MotiView, AnimatePresence } from 'moti';
 import { X, ArrowRight, Wind, Sparkles, Check, Heart, Moon, Eye, Clock } from 'lucide-react-native';
 import { useStore, type TriggerTag } from '../store/useStore';
 import { TACTICS } from '../constants/contentLibrary';
+import { useTheme } from '../constants/theme';
 import { selectForTrigger, selectForPanic } from '../utils/contentSelector';
 
 // =============================================================================
@@ -28,6 +29,7 @@ const TRIGGER_TAPS: { key: TriggerTag; label: string; icon: any }[] = [
 type Phase = 'breath' | 'mantra' | 'trigger' | 'tactic' | 'done';
 
 export const CloseCallProtocol: React.FC<Props> = ({ isOpen, onClose }) => {
+  const theme = useTheme();
   const { personalityProfile, mantras, dailyMantraIndex, logCloseCall } = useStore();
   const [phase, setPhase] = useState<Phase>('breath');
   const [trigger, setTrigger] = useState<TriggerTag | null>(null);
@@ -136,7 +138,7 @@ export const CloseCallProtocol: React.FC<Props> = ({ isOpen, onClose }) => {
       <Pressable
         onPress={() => setPhase('mantra')}
         className="mt-10 rounded-full px-5 py-2"
-        style={{ backgroundColor: 'rgba(255,255,255,0.08)' }}
+        style={{ backgroundColor: theme.surface }}
       >
         <Text className="text-white/70 text-xs">Skip to mantra</Text>
       </Pressable>
@@ -165,7 +167,7 @@ export const CloseCallProtocol: React.FC<Props> = ({ isOpen, onClose }) => {
       <Pressable
         onPress={() => setPhase('trigger')}
         className="rounded-2xl px-6 py-4 mt-10 flex-row items-center"
-        style={{ backgroundColor: '#E8A020' }}
+        style={{ backgroundColor: theme.accent }}
       >
         <Text className="text-guard-on-accent font-black mr-2">Said it</Text>
         <ArrowRight size={16} color="#0F1120" />
@@ -196,7 +198,7 @@ export const CloseCallProtocol: React.FC<Props> = ({ isOpen, onClose }) => {
               setPhase('tactic');
             }}
             className="flex-row items-center rounded-2xl p-4 mb-2"
-            style={{ backgroundColor: '#1A1E35', borderWidth: 1, borderColor: 'rgba(44, 62, 122, 0.4)' }}
+            style={{ backgroundColor: theme.surface, borderWidth: 1, borderColor: theme.hairline }}
           >
             <View
               className="w-10 h-10 rounded-xl items-center justify-center mr-3"
@@ -250,10 +252,10 @@ export const CloseCallProtocol: React.FC<Props> = ({ isOpen, onClose }) => {
             onPress={() => setRating(n)}
             className="flex-1 py-3 mx-1 rounded-xl items-center"
             style={{
-              backgroundColor: rating >= n ? '#E8A020' : 'rgba(255,255,255,0.06)',
+              backgroundColor: rating >= n ? theme.accent : theme.hairline,
             }}
           >
-            <Text style={{ color: rating >= n ? '#0F1120' : '#F0F2FF', fontWeight: '700' }}>
+            <Text style={{ color: rating >= n ? theme.onAccent : theme.text, fontWeight: '700' }}>
               {n}
             </Text>
           </Pressable>
@@ -304,7 +306,7 @@ export const CloseCallProtocol: React.FC<Props> = ({ isOpen, onClose }) => {
       <Pressable
         onPress={close}
         className="rounded-2xl py-4 px-10 mt-10"
-        style={{ backgroundColor: '#E8A020' }}
+        style={{ backgroundColor: theme.accent }}
       >
         <Text className="text-guard-on-accent font-black">Back home</Text>
       </Pressable>
@@ -319,7 +321,7 @@ export const CloseCallProtocol: React.FC<Props> = ({ isOpen, onClose }) => {
           <Pressable
             onPress={close}
             className="absolute top-12 right-6 w-10 h-10 rounded-full items-center justify-center z-10"
-            style={{ backgroundColor: 'rgba(255,255,255,0.08)' }}
+            style={{ backgroundColor: theme.surface }}
           >
             <X size={18} color="#F0F2FF" />
           </Pressable>

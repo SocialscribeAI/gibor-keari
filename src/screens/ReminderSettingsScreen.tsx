@@ -106,7 +106,7 @@ export const ReminderSettingsScreen: React.FC<Props> = ({ onBack }) => {
           }}
           onBlur={() => commitTime(time)}
           placeholder="08:00"
-          placeholderTextColor="rgba(255,255,255,0.3)"
+          placeholderTextColor={theme.textDim}
           className="bg-guard-bg border border-guard-primary/30 rounded-2xl px-4 py-3 text-white text-xl font-black"
           keyboardType="numbers-and-punctuation"
           maxLength={5}

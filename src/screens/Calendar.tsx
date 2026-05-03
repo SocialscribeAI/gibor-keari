@@ -71,7 +71,9 @@ export const Calendar: React.FC = () => {
     if (status === 'fall') return 'rgba(192, 57, 43, 0.7)';
     if (status === 'medium') return 'rgba(232, 160, 32, 0.7)';
     if (status === 'close-call') return 'rgba(232, 160, 32, 0.35)';
-    return 'rgba(255,255,255,0.05)';
+    // Subtle "empty cell" tint that shows in BOTH themes (theme.hairline is
+    // alpha-blended over guard-bg).
+    return theme.hairline;
   };
 
   const handleDayPress = (key: string, d: Date) => {
@@ -145,14 +147,14 @@ export const Calendar: React.FC = () => {
             onPress={() => setLayer(o.k)}
             className="flex-1 rounded-xl py-2 items-center"
             style={{
-              backgroundColor: layer === o.k ? 'rgba(232,160,32,0.18)' : '#1A1E35',
+              backgroundColor: layer === o.k ? theme.accent : theme.surface,
               borderWidth: 1,
-              borderColor: layer === o.k ? '#E8A020' : 'rgba(44,62,122,0.3)',
+              borderColor: layer === o.k ? theme.accent : theme.hairline,
             }}
           >
             <Text
               className="text-[11px] font-bold"
-              style={{ color: layer === o.k ? '#E8A020' : 'rgba(255,255,255,0.7)' }}
+              style={{ color: layer === o.k ? theme.onAccent : theme.mutedStrong }}
             >
               {o.label}
             </Text>
@@ -186,11 +188,11 @@ export const Calendar: React.FC = () => {
             if (status === 'fall') bg = 'rgba(192,57,43,0.7)';
             else if (status === 'win') bg = 'rgba(30,138,74,0.5)';
             else if (closeCalls > 0) bg = 'rgba(232,160,32,0.3)';
-            else bg = 'rgba(255,255,255,0.04)';
+            else bg = theme.hairline;
           } else if (layer === 'notes' && !hasNote) {
-            bg = 'rgba(255,255,255,0.04)';
+            bg = theme.hairline;
           } else if (layer === 'events') {
-            bg = 'rgba(255,255,255,0.04)';
+            bg = theme.hairline;
           }
 
           return (
@@ -219,13 +221,13 @@ export const Calendar: React.FC = () => {
                     {Array.from({ length: Math.min(closeCalls, 3) }).map((_, i) => (
                       <View
                         key={`cc-${i}`}
-                        style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: '#E8A020' }}
+                        style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: theme.accent }}
                       />
                     ))}
                     {Array.from({ length: Math.min(falls, 3) }).map((_, i) => (
                       <View
                         key={`f-${i}`}
-                        style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: '#C0392B' }}
+                        style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: theme.danger }}
                       />
                     ))}
                   </View>
@@ -233,7 +235,7 @@ export const Calendar: React.FC = () => {
                 {hasNote && layer === 'notes' && (
                   <View
                     className="absolute top-1 right-1 rounded-full"
-                    style={{ width: 6, height: 6, backgroundColor: '#2C3E7A' }}
+                    style={{ width: 6, height: 6, backgroundColor: theme.primary }}
                   />
                 )}
               </View>
@@ -316,7 +318,7 @@ export const Calendar: React.FC = () => {
                   <View
                     key={ev.id}
                     className="flex-row items-center rounded-xl px-3 py-2 mb-1"
-                    style={{ backgroundColor: 'rgba(255,255,255,0.04)' }}
+                    style={{ backgroundColor: theme.surface }}
                   >
                     <View
                       style={{
@@ -340,7 +342,7 @@ export const Calendar: React.FC = () => {
           })()}
 
           {selectedNote ? (
-            <View className="mt-3 rounded-xl p-3" style={{ backgroundColor: 'rgba(255,255,255,0.04)' }}>
+            <View className="mt-3 rounded-xl p-3" style={{ backgroundColor: theme.surface }}>
               <Text className="text-white/80 leading-6 text-sm">{selectedNote}</Text>
             </View>
           ) : (
@@ -353,7 +355,7 @@ export const Calendar: React.FC = () => {
         <View className="flex-1 bg-black/80 justify-end">
           <View
             className="bg-guard-bg rounded-t-3xl px-6 pt-6 pb-10"
-            style={{ borderTopWidth: 1, borderColor: 'rgba(44,62,122,0.4)' }}
+            style={{ borderTopWidth: 1, borderColor: theme.hairline }}
           >
             <View className="flex-row items-center justify-between mb-4">
               <Text className="text-2xl font-black text-white" style={{ fontFamily: 'Outfit' }}>
@@ -362,7 +364,7 @@ export const Calendar: React.FC = () => {
               <Pressable
                 onPress={() => setEditorOpen(false)}
                 className="w-9 h-9 rounded-full items-center justify-center"
-                style={{ backgroundColor: 'rgba(255,255,255,0.08)' }}
+                style={{ backgroundColor: theme.surface }}
               >
                 <X size={16} color={theme.text} />
               </Pressable>
@@ -383,12 +385,13 @@ export const Calendar: React.FC = () => {
                 onChangeText={setNoteDraft}
                 multiline
                 placeholder="What happened? What did you learn?"
-                placeholderTextColor="rgba(255,255,255,0.3)"
-                className="text-white rounded-2xl px-4 py-3"
+                placeholderTextColor={theme.textDim}
+                className="rounded-2xl px-4 py-3"
                 style={{
-                  backgroundColor: '#1A1E35',
+                  color: theme.text,
+                  backgroundColor: theme.surface,
                   borderWidth: 1,
-                  borderColor: 'rgba(44,62,122,0.4)',
+                  borderColor: theme.hairline,
                   minHeight: 100,
                   textAlignVertical: 'top',
                   fontSize: 14,
@@ -400,9 +403,9 @@ export const Calendar: React.FC = () => {
             <Pressable
               onPress={saveNote}
               className="rounded-2xl py-4 items-center mt-5"
-              style={{ backgroundColor: '#E8A020' }}
+              style={{ backgroundColor: theme.accent }}
             >
-              <Text className="text-guard-bg font-black uppercase tracking-widest">Save</Text>
+              <Text className="text-guard-on-accent font-black uppercase tracking-widest">Save</Text>
             </Pressable>
 
             <Pressable onPress={clearDay} className="flex-row items-center justify-center py-3 mt-2">
@@ -446,19 +449,26 @@ const StatusChip: React.FC<{
   color: string;
   active: boolean;
   onPress: () => void;
-}> = ({ label, icon: Icon, color, active, onPress }) => (
-  <Pressable
-    onPress={onPress}
-    className="flex-1 rounded-2xl py-3 items-center"
-    style={{
-      backgroundColor: active ? `${color}28` : '#1A1E35',
-      borderWidth: 1,
-      borderColor: active ? color : 'rgba(44,62,122,0.3)',
-    }}
-  >
-    <Icon size={16} color={active ? color : 'rgba(255,255,255,0.6)'} />
-    <Text className="text-[10px] font-bold mt-1" style={{ color: active ? color : 'rgba(255,255,255,0.6)' }}>
-      {label}
-    </Text>
-  </Pressable>
-);
+}> = ({ label, icon: Icon, color, active, onPress }) => {
+  const theme = useTheme();
+  // Pick a readable foreground for the active (filled) state. Gold needs dark
+  // text; red/green are dark enough that white reads cleanly.
+  const isLightFill = color.toLowerCase() === '#e8a020';
+  const onActive = isLightFill ? '#0F1120' : '#FFFFFF';
+  return (
+    <Pressable
+      onPress={onPress}
+      className="flex-1 rounded-2xl py-3 items-center"
+      style={{
+        backgroundColor: active ? color : theme.surface,
+        borderWidth: 1,
+        borderColor: active ? color : theme.hairline,
+      }}
+    >
+      <Icon size={16} color={active ? onActive : theme.mutedStrong} />
+      <Text className="text-[10px] font-bold mt-1" style={{ color: active ? onActive : theme.mutedStrong }}>
+        {label}
+      </Text>
+    </Pressable>
+  );
+};

@@ -202,7 +202,7 @@ export const CoachStyleScreen: React.FC<Props> = ({ onBack }) => {
               style={{
                 flexDirection: 'row',
                 alignItems: 'center',
-                backgroundColor: active ? theme.accent + '15' : theme.surface,
+                backgroundColor: active ? theme.accent : theme.surface,
                 borderWidth: 1.5,
                 borderColor: active ? theme.accent : theme.hairline,
                 borderRadius: 14,
@@ -216,7 +216,7 @@ export const CoachStyleScreen: React.FC<Props> = ({ onBack }) => {
                   width: 38,
                   height: 38,
                   borderRadius: 10,
-                  backgroundColor: active ? theme.accent : theme.bg,
+                  backgroundColor: active ? 'rgba(0,0,0,0.15)' : theme.bg,
                   alignItems: 'center',
                   justifyContent: 'center',
                 }}
@@ -224,10 +224,10 @@ export const CoachStyleScreen: React.FC<Props> = ({ onBack }) => {
                 <Icon size={18} color={active ? theme.onAccent : theme.muted} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={{ color: theme.text, fontWeight: '800', fontSize: 15 }}>{a.label}</Text>
-                <Text style={{ color: theme.muted, fontSize: 12, marginTop: 2, lineHeight: 16 }}>{a.desc}</Text>
+                <Text style={{ color: active ? theme.onAccent : theme.text, fontWeight: '800', fontSize: 15 }}>{a.label}</Text>
+                <Text style={{ color: active ? theme.onAccent : theme.muted, opacity: active ? 0.8 : 1, fontSize: 12, marginTop: 2, lineHeight: 16 }}>{a.desc}</Text>
               </View>
-              {active && <Check size={16} color={theme.accent} />}
+              {active && <Check size={16} color={theme.onAccent} />}
             </Pressable>
           );
         })}
@@ -246,7 +246,7 @@ export const CoachStyleScreen: React.FC<Props> = ({ onBack }) => {
               key={s.id}
               onPress={() => toggleMantraStyle(s.id)}
               style={{
-                backgroundColor: active ? theme.accent + '15' : theme.surface,
+                backgroundColor: active ? theme.accent : theme.surface,
                 borderWidth: 1.5,
                 borderColor: active ? theme.accent : theme.hairline,
                 borderRadius: 14,
@@ -255,10 +255,10 @@ export const CoachStyleScreen: React.FC<Props> = ({ onBack }) => {
               }}
             >
               <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
-                <Text style={{ color: theme.text, fontWeight: '800', fontSize: 14, flex: 1 }}>{s.label}</Text>
-                {active && <Check size={14} color={theme.accent} />}
+                <Text style={{ color: active ? theme.onAccent : theme.text, fontWeight: '800', fontSize: 14, flex: 1 }}>{s.label}</Text>
+                {active && <Check size={14} color={theme.onAccent} />}
               </View>
-              <Text style={{ color: theme.muted, fontSize: 12, fontStyle: 'italic', lineHeight: 16 }}>{s.example}</Text>
+              <Text style={{ color: active ? theme.onAccent : theme.muted, opacity: active ? 0.8 : 1, fontSize: 12, fontStyle: 'italic', lineHeight: 16 }}>{s.example}</Text>
             </Pressable>
           );
         })}
@@ -279,7 +279,7 @@ export const CoachStyleScreen: React.FC<Props> = ({ onBack }) => {
                 key={t.id}
                 onPress={() => toggleTacticPref(t.id)}
                 style={{
-                  backgroundColor: active ? theme.accent + '20' : theme.surface,
+                  backgroundColor: active ? theme.accent : theme.surface,
                   borderWidth: 1.5,
                   borderColor: active ? theme.accent : theme.hairline,
                   borderRadius: 12,
@@ -292,10 +292,10 @@ export const CoachStyleScreen: React.FC<Props> = ({ onBack }) => {
                   flex: 1,
                 }}
               >
-                <Icon size={14} color={active ? theme.accent : theme.muted} />
+                <Icon size={14} color={active ? theme.onAccent : theme.muted} />
                 <View style={{ flex: 1 }}>
-                  <Text style={{ color: active ? theme.text : theme.muted, fontWeight: '800', fontSize: 12 }}>{t.label}</Text>
-                  <Text style={{ color: theme.muted, fontSize: 10, marginTop: 1 }}>{t.examples}</Text>
+                  <Text style={{ color: active ? theme.onAccent : theme.muted, fontWeight: '800', fontSize: 12 }}>{t.label}</Text>
+                  <Text style={{ color: active ? theme.onAccent : theme.muted, opacity: active ? 0.75 : 1, fontSize: 10, marginTop: 1 }}>{t.examples}</Text>
                 </View>
               </Pressable>
             );
@@ -354,7 +354,7 @@ export const CoachStyleScreen: React.FC<Props> = ({ onBack }) => {
               style={{
                 flexDirection: 'row',
                 alignItems: 'center',
-                backgroundColor: active ? theme.accent + '15' : theme.surface,
+                backgroundColor: active ? theme.accent : theme.surface,
                 borderWidth: 1.5,
                 borderColor: active ? theme.accent : theme.hairline,
                 borderRadius: 12,
@@ -363,10 +363,10 @@ export const CoachStyleScreen: React.FC<Props> = ({ onBack }) => {
               }}
             >
               <View style={{ flex: 1 }}>
-                <Text style={{ color: theme.text, fontWeight: '800', fontSize: 14 }}>{d.label}</Text>
-                <Text style={{ color: theme.muted, fontSize: 12, marginTop: 2 }}>{d.desc}</Text>
+                <Text style={{ color: active ? theme.onAccent : theme.text, fontWeight: '800', fontSize: 14 }}>{d.label}</Text>
+                <Text style={{ color: active ? theme.onAccent : theme.muted, opacity: active ? 0.8 : 1, fontSize: 12, marginTop: 2 }}>{d.desc}</Text>
               </View>
-              {active && <Check size={16} color={theme.accent} />}
+              {active && <Check size={16} color={theme.onAccent} />}
             </Pressable>
           );
         })}

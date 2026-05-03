@@ -258,7 +258,7 @@ export const AiCoachConfigScreen: React.FC<Props> = ({ onBack }) => {
                 key={p.id}
                 onPress={() => handleSelectProvider(p.id)}
                 style={{
-                  backgroundColor: active ? theme.accent + '1A' : theme.surface,
+                  backgroundColor: active ? theme.accent : theme.surface,
                   borderWidth: 1,
                   borderColor: active ? theme.accent : theme.hairline,
                   borderRadius: 12,
@@ -274,7 +274,7 @@ export const AiCoachConfigScreen: React.FC<Props> = ({ onBack }) => {
                     height: 20,
                     borderRadius: 10,
                     borderWidth: 2,
-                    borderColor: active ? theme.accent : theme.muted,
+                    borderColor: active ? theme.onAccent : theme.muted,
                     alignItems: 'center',
                     justifyContent: 'center',
                   }}
@@ -285,16 +285,16 @@ export const AiCoachConfigScreen: React.FC<Props> = ({ onBack }) => {
                         width: 10,
                         height: 10,
                         borderRadius: 5,
-                        backgroundColor: theme.accent,
+                        backgroundColor: theme.onAccent,
                       }}
                     />
                   )}
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ color: theme.text, fontSize: 14, fontWeight: '600' }}>
+                  <Text style={{ color: active ? theme.onAccent : theme.text, fontSize: 14, fontWeight: '600' }}>
                     {p.name}
                   </Text>
-                  <Text style={{ color: theme.muted, fontSize: 12, marginTop: 2, lineHeight: 16 }}>
+                  <Text style={{ color: active ? theme.onAccent : theme.muted, opacity: active ? 0.8 : 1, fontSize: 12, marginTop: 2, lineHeight: 16 }}>
                     {p.desc}
                   </Text>
                 </View>

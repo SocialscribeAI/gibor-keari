@@ -113,8 +113,8 @@ export const WatchlistScreen: React.FC<Props> = ({ onBack }) => {
             gap: 4,
           }}
         >
-          <Plus size={16} color="#000" />
-          <Text style={{ color: '#000', fontWeight: '700', fontSize: 13 }}>Add</Text>
+          <Plus size={16} color={theme.onAccent} />
+          <Text style={{ color: theme.onAccent, fontWeight: '700', fontSize: 13 }}>Add</Text>
         </Pressable>
       </View>
 
@@ -232,7 +232,7 @@ const FilterChip: React.FC<{ label: string; active: boolean; onPress: () => void
         borderColor: active ? theme.accent : theme.hairline,
       }}
     >
-      <Text style={{ color: active ? '#000' : theme.text, fontSize: 12, fontWeight: '600' }}>
+      <Text style={{ color: active ? theme.onAccent : theme.text, fontSize: 12, fontWeight: '600' }}>
         {label}
       </Text>
     </Pressable>
@@ -282,8 +282,8 @@ const EmptyState: React.FC<{ onAdd: () => void }> = ({ onAdd }) => {
           gap: 6,
         }}
       >
-        <Plus size={16} color="#000" />
-        <Text style={{ color: '#000', fontWeight: '700' }}>Add first item</Text>
+        <Plus size={16} color={theme.onAccent} />
+        <Text style={{ color: theme.onAccent, fontWeight: '700' }}>Add first item</Text>
       </Pressable>
     </View>
   );
@@ -388,10 +388,10 @@ const WatchCard: React.FC<{
                       borderColor: active ? theme.accent : theme.hairline,
                     }}
                   >
-                    <LIcon size={10} color={active ? '#000' : theme.muted} />
+                    <LIcon size={10} color={active ? theme.onAccent : theme.muted} />
                     <Text
                       style={{
-                        color: active ? '#000' : theme.text,
+                        color: active ? theme.onAccent : theme.text,
                         fontSize: 11,
                         fontWeight: '600',
                       }}
@@ -544,10 +544,10 @@ const AddWatchOverlay: React.FC<{
                     borderColor: active ? theme.accent : theme.hairline,
                   }}
                 >
-                  <TIcon size={12} color={active ? '#000' : theme.muted} />
+                  <TIcon size={12} color={active ? theme.onAccent : theme.muted} />
                   <Text
                     style={{
-                      color: active ? '#000' : theme.text,
+                      color: active ? theme.onAccent : theme.text,
                       fontSize: 12,
                       fontWeight: '600',
                     }}
@@ -619,17 +619,17 @@ const AddWatchOverlay: React.FC<{
                     gap: 10,
                     padding: 10,
                     borderRadius: 10,
-                    backgroundColor: active ? theme.accent + '22' : theme.surface,
+                    backgroundColor: active ? theme.accent : theme.surface,
                     borderWidth: 1,
                     borderColor: active ? theme.accent : theme.hairline,
                   }}
                 >
-                  <LIcon size={16} color={active ? theme.accent : theme.muted} />
+                  <LIcon size={16} color={active ? theme.onAccent : theme.muted} />
                   <View style={{ flex: 1 }}>
-                    <Text style={{ color: theme.text, fontSize: 13, fontWeight: '600' }}>
+                    <Text style={{ color: active ? theme.onAccent : theme.text, fontSize: 13, fontWeight: '600' }}>
                       {l.label}
                     </Text>
-                    <Text style={{ color: theme.muted, fontSize: 11, marginTop: 1 }}>
+                    <Text style={{ color: active ? theme.onAccent : theme.muted, opacity: active ? 0.8 : 1, fontSize: 11, marginTop: 1 }}>
                       {l.sub}
                     </Text>
                   </View>
@@ -657,7 +657,7 @@ const AddWatchOverlay: React.FC<{
               opacity: canSave ? 1 : 0.5,
             }}
           >
-            <Text style={{ color: canSave ? '#000' : theme.muted, fontWeight: '700', fontSize: 15 }}>
+            <Text style={{ color: canSave ? theme.onAccent : theme.muted, fontWeight: '700', fontSize: 15 }}>
               Save to watchlist
             </Text>
           </Pressable>

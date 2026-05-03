@@ -1,6 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Linking, Pressable, Text, View } from 'react-native';
-import { BUILD_TIME_ISO } from '../buildInfo';
+import { BUILD_COMMIT } from '../buildInfo';
+
+const LOCAL_COMMIT: string = BUILD_COMMIT;
 
 const GITHUB_RELEASES_API =
   'https://api.github.com/repos/SocialscribeAI/gibor-keari/releases/latest';
@@ -8,9 +10,15 @@ const RELEASE_PAGE_URL =
   'https://github.com/SocialscribeAI/gibor-keari/releases/tag/latest';
 
 type LatestRelease = {
-  publishedAt: string;
+  commitSha: string | null;
   apkUrl: string;
 };
+
+function parseBuildCommit(body: unknown): string | null {
+  if (typeof body !== 'string') return null;
+  const m = body.match(/Build commit:\s*([0-9a-f]{7,40})/i);
+  return m ? m[1].toLowerCase() : null;
+}
 
 async function fetchLatestRelease(): Promise<LatestRelease | null> {
   try {
@@ -24,7 +32,7 @@ async function fetchLatestRelease(): Promise<LatestRelease | null> {
         typeof a?.name === 'string' && a.name.endsWith('.apk'),
     );
     return {
-      publishedAt: json?.published_at ?? json?.created_at ?? '',
+      commitSha: parseBuildCommit(json?.body),
       apkUrl: apkAsset?.browser_download_url ?? RELEASE_PAGE_URL,
     };
   } catch {
@@ -36,17 +44,20 @@ export function UpdateBanner() {
   const [updateUrl, setUpdateUrl] = useState<string | null>(null);
 
   useEffect(() => {
+    // Local/dev builds have LOCAL_COMMIT === 'dev' — never nag.
+    if (!LOCAL_COMMIT || LOCAL_COMMIT === 'dev') return;
+
     let cancelled = false;
     (async () => {
       const latest = await fetchLatestRelease();
-      if (cancelled || !latest?.publishedAt) return;
-      const built = Date.parse(BUILD_TIME_ISO);
-      const published = Date.parse(latest.publishedAt);
-      // Treat as update only if release is at least 60s newer than this build
-      // (avoids self-triggering on the very build that produced the release).
-      if (Number.isFinite(built) && Number.isFinite(published) && published - built > 60_000) {
-        setUpdateUrl(latest.apkUrl);
-      }
+      if (cancelled || !latest) return;
+      // If we couldn't read a SHA from the release, stay silent rather than
+      // nag — better to miss an update than to falsely advertise one.
+      if (!latest.commitSha) return;
+      const localSha = LOCAL_COMMIT.toLowerCase();
+      const isSameBuild =
+        latest.commitSha.startsWith(localSha) || localSha.startsWith(latest.commitSha);
+      if (!isSameBuild) setUpdateUrl(latest.apkUrl);
     })();
     return () => {
       cancelled = true;

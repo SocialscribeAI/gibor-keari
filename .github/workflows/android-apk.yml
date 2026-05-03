@@ -169,6 +169,11 @@ jobs:
           files: dist/gibor-keari.apk
           generate_release_notes: true
           fail_on_unmatched_files: true
+          append_body: true
+          body: |
+
+            ---
+            Build commit: ${{ github.sha }}
 
       - name: Publish APK to rolling "latest" release (manual runs)
         if: github.event_name == 'workflow_dispatch'
@@ -180,6 +185,9 @@ jobs:
             Auto-built release APK (alpha-signed).
             Open this page on your Android phone and tap the .apk to install.
             (Allow "install from unknown sources" the first time.)
+
+            ---
+            Build commit: ${{ github.sha }}
           files: dist/gibor-keari.apk
           fail_on_unmatched_files: true
           make_latest: 'true'

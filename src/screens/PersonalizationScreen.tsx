@@ -274,7 +274,7 @@ export const PersonalizationScreen: React.FC<Props> = ({ onBack }) => {
         <Pressable
           onPress={onBack}
           className="w-10 h-10 rounded-full items-center justify-center mr-3"
-          style={{ backgroundColor: 'rgba(255,255,255,0.06)' }}
+          style={{ backgroundColor: theme.hairline }}
         >
           <ChevronLeft size={18} color={theme.text} />
         </Pressable>
@@ -305,9 +305,9 @@ export const PersonalizationScreen: React.FC<Props> = ({ onBack }) => {
               key={axis.key}
               className="rounded-2xl mb-3 overflow-hidden"
               style={{
-                backgroundColor: '#1A1E35',
+                backgroundColor: theme.surface,
                 borderWidth: 1,
-                borderColor: isOpen ? 'rgba(232,160,32,0.4)' : 'rgba(44,62,122,0.3)',
+                borderColor: isOpen ? 'rgba(232,160,32,0.4)' : theme.hairline,
               }}
             >
               <Pressable
@@ -349,16 +349,16 @@ export const PersonalizationScreen: React.FC<Props> = ({ onBack }) => {
                             }
                             className="rounded-full px-3.5 py-2"
                             style={{
-                              backgroundColor: active ? 'rgba(232,160,32,0.18)' : 'rgba(255,255,255,0.04)',
+                              backgroundColor: active ? theme.accent : theme.hairline,
                               borderWidth: 1,
-                              borderColor: active ? '#E8A020' : 'rgba(255,255,255,0.1)',
+                              borderColor: active ? theme.accent : theme.hairline,
                             }}
                           >
                             <View className="flex-row items-center">
-                              {active && <Check size={12} color={theme.accent} style={{ marginRight: 4 }} />}
+                              {active && <Check size={12} color={theme.onAccent} style={{ marginRight: 4 }} />}
                               <Text
                                 className="text-xs font-bold"
-                                style={{ color: active ? '#E8A020' : 'rgba(255,255,255,0.75)' }}
+                                style={{ color: active ? theme.onAccent : theme.mutedStrong }}
                               >
                                 {o.label}
                               </Text>
@@ -372,17 +372,17 @@ export const PersonalizationScreen: React.FC<Props> = ({ onBack }) => {
                           className="rounded-full px-3.5 py-2"
                           style={{
                             backgroundColor: isCustomSelected
-                              ? 'rgba(232,160,32,0.18)'
-                              : 'rgba(255,255,255,0.04)',
+                              ? theme.accent
+                              : theme.hairline,
                             borderWidth: 1,
                             borderStyle: 'dashed',
-                            borderColor: isCustomSelected ? '#E8A020' : 'rgba(255,255,255,0.1)',
+                            borderColor: isCustomSelected ? theme.accent : theme.hairline,
                           }}
                         >
                           <Text
                             className="text-xs font-bold"
                             style={{
-                              color: isCustomSelected ? '#E8A020' : 'rgba(255,255,255,0.75)',
+                              color: isCustomSelected ? theme.onAccent : 'rgba(255,255,255,0.75)',
                             }}
                           >
                             Custom
@@ -401,7 +401,7 @@ export const PersonalizationScreen: React.FC<Props> = ({ onBack }) => {
                         placeholderTextColor={theme.textDim}
                         className="text-white rounded-xl px-3 py-2 mt-3"
                         style={{
-                          backgroundColor: 'rgba(255,255,255,0.04)',
+                          backgroundColor: theme.hairline,
                           borderWidth: 1,
                           borderColor: 'rgba(232,160,32,0.3)',
                           fontSize: 13,
