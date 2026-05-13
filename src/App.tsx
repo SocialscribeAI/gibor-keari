@@ -6,7 +6,6 @@ import { Navigator } from './navigation/Navigator';
 import { PunishmentModeWrapper } from './components/PunishmentModeWrapper';
 import { SplashScreen } from './components/SplashScreen';
 import { CheckInModal } from './components/CheckInModal';
-import { ThemeManager } from './components/ThemeManager';
 import { UpdateBanner } from './components/UpdateBanner';
 import { AlphaBanner } from './components/AlphaBanner';
 import { LockScreen } from './screens/LockScreen';
@@ -108,14 +107,37 @@ function useLockGate() {
   return { locked: protectionOn && locked, unlock };
 }
 
+/**
+ * Re-schedule local notifications whenever any input that affects them changes.
+ * Runs on every mount and whenever the user toggles notifications, edits the
+ * reminder time, or shifts the danger hour. Idempotent — cancels first.
+ */
+function useNotificationBootstrap() {
+  const notificationsEnabled = useStore((s) => s.notificationsEnabled);
+  const dailyReminderTime = useStore((s) => s.dailyReminderTime);
+  const dangerHour = useStore((s) => s.dangerHour);
+  const tone = useStore((s) => s.personalityProfile.tone);
+  const currentStreak = useStore((s) => s.currentStreak);
+
+  useEffect(() => {
+    void notificationService.bootstrap({
+      enabled: notificationsEnabled,
+      dailyReminderTime,
+      dangerHour,
+      tone,
+      streak: currentStreak,
+    });
+  }, [notificationsEnabled, dailyReminderTime, dangerHour, tone, currentStreak]);
+}
+
 export default function App() {
   const [isSplashComplete, setIsSplashComplete] = useState(false);
   const { locked, unlock } = useLockGate();
   usePartnerPushRegistration();
+  useNotificationBootstrap();
 
   return (
-    <View className="flex-1 bg-guard-bg">
-      <ThemeManager />
+    <View className="flex-1 bg-guard-bg dark">
       <AnimatePresence exitBeforeEnter>
         {!isSplashComplete ? (
           <SplashScreen key="splash" onComplete={() => setIsSplashComplete(true)} />

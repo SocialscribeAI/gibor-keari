@@ -73,6 +73,26 @@ export const notificationService = {
     // Stub — would schedule future-dated notifications for specific milestones.
   },
 
+  /**
+   * Single source of truth for what should be scheduled. Cancels all currently
+   * scheduled local notifications and re-schedules from the inputs. Idempotent.
+   * Call on app boot and whenever any input changes (toggle, time, danger hour).
+   */
+  async bootstrap(opts: {
+    enabled: boolean;
+    dailyReminderTime: string;
+    dangerHour: number;
+    tone: Tone;
+    streak: number;
+  }): Promise<void> {
+    await Notifications.cancelAllScheduledNotificationsAsync();
+    if (!opts.enabled) return;
+    const { status } = await Notifications.getPermissionsAsync();
+    if (status !== 'granted') return;
+    await this.scheduleDailyReminder(opts.dailyReminderTime, opts.tone, opts.streak);
+    await this.scheduleUrgeAlert(opts.dangerHour);
+  },
+
   async triggerPreview(id: 'daily_reminder' | 'urge_alert'): Promise<void> {
     const body =
       id === 'daily_reminder'

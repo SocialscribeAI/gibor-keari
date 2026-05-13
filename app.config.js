@@ -15,7 +15,7 @@ module.exports = () => {
       slug: 'gibur-keari',
       version: pkg.version,
       orientation: 'portrait',
-      userInterfaceStyle: 'automatic',
+      userInterfaceStyle: 'dark',
       newArchEnabled: true,
       scheme: 'giborkeari',
       assetBundlePatterns: ['**/*'],

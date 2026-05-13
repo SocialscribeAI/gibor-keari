@@ -249,12 +249,53 @@ const THERAPIST_PRINCIPLES = [
   '   there?" Never as gotcha.',
   '',
   '6. KNOW WHEN TO PUSH AND WHEN TO HOLD.',
-  '   • Shame spiral → identity reframe ONLY (Tanya Beinoni). NO tactics',
-  '     until the spiral breaks. Shame is not the moment for advice.',
+  '   • Active urge / live craving (user says "I have an urge", "I want to",',
+  '     "I\'m about to", "tempted", "struggling right now", "horny", "can\'t',
+  '     stop thinking", "yetzer is loud") → THIS IS YOUR JOB. Push hard.',
+  '     Run the URGE-MOMENT PROTOCOL below. Do NOT just hold space — every',
+  '     minute the urge is unaddressed is a minute closer to a fall.',
+  '   • Shame spiral after a fall → identity reframe ONLY (Tanya Beinoni).',
+  '     NO tactics until the spiral breaks. Shame is not the moment for advice.',
   '   • Stable / curious mode → use the moment for deeper work, assessment,',
   '     pattern surfacing.',
-  '   • Crisis → drop everything. One short message. Hold space. Tactic',
-  '     ONLY if asked.',
+  '   • Acute non-urge crisis (panic, dissociation, ideation) → drop everything.',
+  '     One short message. Hold space. Tactic ONLY if asked.',
+  '',
+  'URGE-MOMENT PROTOCOL (MANDATORY when user signals an active urge):',
+  '   This is the central job of this app. Treat the urge as the wave it is —',
+  '   it WILL crest and fall in under 20-30 minutes if he doesn\'t feed it.',
+  '   Throw the kitchen sink. Be direct, warm, and relentless. In a single',
+  '   message:',
+  '   a) NAME the wave — "This is an urge. It peaks in 20 min and passes if',
+  '      you don\'t feed it. The craving is the addiction leaving, not your',
+  '      body needing it." (Marlatt urge-surfing + Allen Carr reframe.)',
+  '   b) EXTERNALIZE — "This is the yetzer / the little monster talking, not',
+  '      you. You are the man watching the urge. Two souls, one of them is',
+  '      lying to you right now." (Tanya / IFS / Twerski.)',
+  '   c) HALT check — fast: Hungry? Angry? Lonely? Tired? If yes, address that',
+  '      first — those amplify urges 3x.',
+  '   d) ONE concrete physical move he does RIGHT NOW. Pick the most likely',
+  '      to land based on his stylePrefs/firstMoveWhenUrgeHits/topTactics.',
+  '      Examples: 60s cold water on face, 20 pushups, leave the room, call',
+  '      partner, walk outside, 30s box breathing, niggun audio. Tell him to',
+  '      do it before responding to you. Make it stupidly small and immediate.',
+  '   e) SUBSTITUTE, don\'t suppress (Issurei Biah 21:19 / Wegner white-bear):',
+  '      give him something to fill the cognitive space — a single posuk, a',
+  '      Tehillim chapter, a mantra he picked, a memory of his "why".',
+  '   f) FUTURE-SELF check — "In 5 minutes after the act, what will you feel?',
+  '      In 5 hours? In 5 years, who is the man on the other side of this',
+  '      moment?" (Hershfield future-self research.)',
+  '   g) IDENTITY anchor — speak to the gibor he is becoming, not the urge.',
+  '      "You are not the man who feeds this. You are the man who watches it',
+  '      pass." Use his identityStatement if one is set.',
+  '   h) STAY WITH HIM — explicitly invite the next message. "Tell me when',
+  '      you\'ve done [the move]. I\'m here." Never end an urge-moment reply',
+  '      with a closing platitude — keep the door open.',
+  '   You don\'t have to use ALL of a-h in one message — pick the 3-4 that',
+  '   match his religiousLevel, tone, and what he just said. But you MUST',
+  '   give a concrete physical move (d) and you MUST keep the door open (h).',
+  '   If goHard is set or coachingApproach is "drill-sergeant" — be sharper,',
+  '   shorter, more demanding. He asked for it.',
   '',
   '7. NEVER LECTURE.',
   '   You are not a pulpit. Cite a source ONLY when the user is ready to',
@@ -545,6 +586,11 @@ export async function generateCoachReply(
   let finalText = '';
 
   // Tool-use loop: max 3 iterations so we can't burn free-tier quota on loops.
+  // Only the FINAL iteration (no further tool calls) determines the visible
+  // reply. Prose emitted alongside tool calls is discarded — the model is
+  // re-prompted with the tool results and asked to write the user-facing reply
+  // from scratch. This prevents the "response shown twice" bug that came from
+  // re-feeding prior prose into the next turn.
   for (let i = 0; i < 3; i++) {
     const res = await callAI(ai, {
       system: baseSystem,
@@ -554,31 +600,52 @@ export async function generateCoachReply(
     });
     if (!res.ok) return res;
 
-    const { cleaned, calls } = parseToolCalls(res.data);
-    // Append any prose from this turn to the final reply.
-    if (cleaned) finalText = finalText ? `${finalText}\n\n${cleaned}` : cleaned;
+    let cleaned = '';
+    let calls: ReturnType<typeof parseToolCalls>['calls'] = [];
+    try {
+      const parsed = parseToolCalls(res.data);
+      cleaned = parsed.cleaned;
+      calls = parsed.calls;
+    } catch {
+      // Malformed tool-call syntax — fall back to the raw model output as prose.
+      cleaned = res.data;
+    }
 
-    if (!calls.length) break;
+    if (!calls.length) {
+      finalText = cleaned;
+      break;
+    }
 
-    const results = await executeToolCalls(calls, registry);
+    let results: Awaited<ReturnType<typeof executeToolCalls>>;
+    try {
+      results = await executeToolCalls(calls, registry);
+    } catch (e: any) {
+      // executeToolCalls already catches per-call errors and returns them in
+      // the ToolResult shape, so this only fires on a registry-level failure.
+      return { ok: true, data: cleaned || '[Coach tried to look something up but the tool layer failed — try again.]' };
+    }
     if (opts?.onToolEvent) {
       for (const r of results) opts.onToolEvent({ kind: 'tool', name: r.name, ok: r.ok });
     }
 
-    // Feed results back so the model can incorporate them.
     turnUser = [
       historyBlock,
       '',
       `User just said: ${userMessage}`,
       '',
-      `Your previous turn made these tool calls. Use the results to continue your reply.`,
+      `Your tool calls returned:`,
       renderToolResults(results),
       '',
-      'Continue your reply to the user now. Do not repeat the tool call syntax. Talk to the user directly.',
-    ].join('\n');
+      'You have NOT replied to the user yet. Write your reply now — one complete message, no tool-call syntax, no meta-commentary. This is the only message the user will see for this turn.',
+    ]
+      .filter(Boolean)
+      .join('\n');
   }
 
-  return { ok: true, data: finalText || '(no reply)' };
+  if (!finalText) {
+    return { ok: true, data: '[Coach tried to look something up but couldn’t finish — try again.]' };
+  }
+  return { ok: true, data: finalText };
 }
 
 // ---------------------------------------------------------------------------

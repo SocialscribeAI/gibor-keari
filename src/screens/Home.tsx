@@ -10,9 +10,7 @@ import { useTheme } from '../constants/theme';
 import { VowScreen } from './VowScreen';
 import { PostFallProtocol } from '../components/PostFallProtocol';
 import { MilestoneCelebration } from '../components/MilestoneCelebration';
-import { EmergencyCountdown } from '../components/EmergencyCountdown';
 import { CheckInModal } from '../components/CheckInModal';
-import { PanicButton } from '../components/PanicButton';
 import { StreakIncentiveBar } from '../components/StreakIncentiveBar';
 import { DangerMode } from '../components/DangerMode';
 
@@ -26,24 +24,24 @@ export const Home: React.FC = () => {
     calendarLog,
     mantras,
     dailyMantraIndex,
+    rotateMantraIfNeeded,
     lastCelebratedMilestone,
     setLastCelebratedMilestone,
     likeMantra,
     dislikeMantra,
-    coachStylePrefs,
   } = useStore();
   const { currentStreak, level } = useStreak();
   const theme = useTheme();
 
   const [showFall, setShowFall] = useState(false);
   const [showDanger, setShowDanger] = useState(false);
-  const [showEmergency, setShowEmergency] = useState(false);
   const [milestoneToCelebrate, setMilestoneToCelebrate] = useState<number | null>(null);
   const [mantraRated, setMantraRated] = useState<'liked' | 'disliked' | null>(null);
 
   useEffect(() => {
     syncStreak();
-  }, [syncStreak]);
+    rotateMantraIfNeeded();
+  }, [syncStreak, rotateMantraIfNeeded]);
 
   useEffect(() => {
     const hit = MILESTONES.find((m) => currentStreak === m && lastCelebratedMilestone !== m);
@@ -167,27 +165,6 @@ export const Home: React.FC = () => {
         </Pressable>
       </View>
 
-      {/* ─── EMERGENCY ─── */}
-      <Pressable
-        onPress={() => setShowEmergency(true)}
-        style={{
-          backgroundColor: 'rgba(192,57,43,0.9)',
-          borderRadius: 16,
-          paddingVertical: 16,
-          paddingHorizontal: 20,
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'center',
-          marginBottom: 16,
-          borderWidth: 1,
-          borderColor: 'rgba(192,57,43,0.5)',
-        }}
-      >
-        <Text style={{ color: '#FFFFFF', fontWeight: '900', fontSize: 15, letterSpacing: 1.5, textTransform: 'uppercase' }}>
-          Emergency — 60 second pause
-        </Text>
-      </Pressable>
-
       {/* Mantra with rating */}
       <View className="bg-guard-surface border border-guard-primary/30 rounded-2xl p-4 mb-3">
         <View className="flex-row items-center justify-between mb-2">
@@ -242,14 +219,6 @@ export const Home: React.FC = () => {
 
       <PostFallProtocol isOpen={showFall} onClose={() => setShowFall(false)} />
 
-      {showEmergency && (
-        <EmergencyCountdown
-          appName="Pause"
-          onComplete={() => setShowEmergency(false)}
-          onCancel={() => setShowEmergency(false)}
-        />
-      )}
-
       {milestoneToCelebrate && (
         <MilestoneCelebration
           day={milestoneToCelebrate}
@@ -258,7 +227,6 @@ export const Home: React.FC = () => {
       )}
 
       <CheckInModal />
-      <PanicButton />
     </Screen>
   );
 };

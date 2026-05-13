@@ -19,8 +19,6 @@ export const ReminderSettingsScreen: React.FC<Props> = ({ onBack }) => {
     dailyReminderTime,
     dangerHour,
     updateNotificationSettings,
-    personalityProfile,
-    currentStreak,
   } = useStore();
 
   const [time, setTime] = useState(dailyReminderTime);
@@ -35,6 +33,9 @@ export const ReminderSettingsScreen: React.FC<Props> = ({ onBack }) => {
     updateNotificationSettings({ dailyReminderTime: t });
   };
 
+  // Scheduling itself is handled by useNotificationBootstrap in App.tsx — it
+  // observes every input below and re-schedules on change. Here we only own
+  // the permission prompt (must run from a user gesture on iOS).
   const toggleNotifications = async (value: boolean) => {
     if (value) {
       const granted = await notificationService.requestPermissions();
@@ -42,22 +43,12 @@ export const ReminderSettingsScreen: React.FC<Props> = ({ onBack }) => {
         Alert.alert('Permission denied', 'Enable notifications in system settings to receive reminders.');
         return;
       }
-      await notificationService.scheduleDailyReminder(time, personalityProfile.tone, currentStreak);
-      await notificationService.scheduleUrgeAlert(dangerHour);
-    } else {
-      await notificationService.cancelAll();
     }
     updateNotificationSettings({ notificationsEnabled: value });
   };
 
   const setHour = (h: number) => {
     updateNotificationSettings({ dangerHour: h });
-    if (notificationsEnabled) {
-      notificationService.cancelAll().then(() => {
-        notificationService.scheduleDailyReminder(time, personalityProfile.tone, currentStreak);
-        notificationService.scheduleUrgeAlert(h);
-      });
-    }
   };
 
   const preview = (id: 'daily_reminder' | 'urge_alert') => {

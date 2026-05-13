@@ -2,7 +2,8 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { v4 as uuidv4 } from 'uuid';
-import { differenceInDays, format } from 'date-fns';
+import { format } from 'date-fns';
+import { localDaysBetween } from '../utils/formatters';
 
 // =============================================================================
 // TYPES — the 12 personalization axes
@@ -738,8 +739,9 @@ interface GuardState {
   // Privacy acknowledgements
   privacyPromiseAcknowledged: boolean;
 
-  // Appearance
-  themePreference: 'light' | 'dark' | 'system';
+  // Daily-mantra rotation
+  mantraRotationSeed: number;
+  lastMantraRotationDayIndex: number | null;
 
   // Coach memory (persistent across sessions)
   coachMessages: CoachMessage[];
@@ -898,8 +900,8 @@ interface GuardState {
   exportAllData: () => string; // returns JSON string (caller handles share/save)
   deleteAllData: () => void;
 
-  // Appearance
-  setThemePreference: (pref: 'light' | 'dark' | 'system') => void;
+  // Daily mantra rotation — recompute dailyMantraIndex if the local day rolled over.
+  rotateMantraIfNeeded: () => void;
 }
 
 // =============================================================================
@@ -970,7 +972,8 @@ export const useStore = create<GuardState>()(
 
       privacyPromiseAcknowledged: false,
 
-      themePreference: 'dark',
+      mantraRotationSeed: Math.floor(Math.random() * 1_000_000),
+      lastMantraRotationDayIndex: null,
 
       coachMessages: [],
       coachSummary: null,
@@ -1234,17 +1237,13 @@ export const useStore = create<GuardState>()(
         if (!streakStart) return;
         const start = new Date(streakStart);
         const now = new Date();
-        const days = differenceInDays(now, start);
-        // Auto-backfill: every day from streakStart up to (but not including)
-        // today is marked 'win' unless the user already logged something for
-        // that day (fall, close-call, medium, or manually edited).
-        // Today stays untouched — user has the whole day to log a fall.
+        const days = localDaysBetween(start, now);
         const updatedLog: Record<string, LogEntry> = { ...calendarLog };
+        const cursor = new Date(start.getFullYear(), start.getMonth(), start.getDate());
         for (let i = 0; i < days; i++) {
-          const d = new Date(start);
-          d.setDate(start.getDate() + i);
-          const key = format(d, 'yyyy-MM-dd');
+          const key = format(cursor, 'yyyy-MM-dd');
           if (!updatedLog[key]) updatedLog[key] = 'win';
+          cursor.setDate(cursor.getDate() + 1);
         }
         set({ currentStreak: Math.max(0, days), calendarLog: updatedLog });
       },
@@ -1264,6 +1263,7 @@ export const useStore = create<GuardState>()(
         if (mostRecentFall) {
           const [y, m, d] = mostRecentFall.split('-').map(Number);
           const dayAfter = new Date(y, m - 1, d + 1);
+          dayAfter.setHours(0, 0, 0, 0);
           nextStreakStart = dayAfter.toISOString();
         } else if (!streakStart) {
           // No falls and no active streak — anchor to memberSince so the user
@@ -1506,7 +1506,27 @@ export const useStore = create<GuardState>()(
       setBiometricEnabled: (enabled) => set({ biometricEnabled: enabled }),
       setLockTimeoutMode: (mode) => set({ lockTimeoutMode: mode }),
 
-      setThemePreference: (pref) => set({ themePreference: pref }),
+      rotateMantraIfNeeded: () => {
+        const { mantras, mantraRotationSeed, lastMantraRotationDayIndex, coachStylePrefs } = get();
+        if (!mantras.length) return;
+        const now = new Date();
+        const localMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+        const todayIndex = Math.floor(localMidnight / 86_400_000);
+        if (lastMantraRotationDayIndex === todayIndex) return;
+
+        const liked = new Set(coachStylePrefs.likedMantraTexts ?? []);
+        const disliked = new Set(coachStylePrefs.dislikedMantraTexts ?? []);
+        const pool: number[] = [];
+        mantras.forEach((m, i) => {
+          if (disliked.has(m)) return;
+          pool.push(i);
+          if (liked.has(m)) pool.push(i);
+        });
+        if (!pool.length) mantras.forEach((_, i) => pool.push(i));
+
+        const pick = pool[(mantraRotationSeed + todayIndex) % pool.length];
+        set({ dailyMantraIndex: pick, lastMantraRotationDayIndex: todayIndex });
+      },
 
       resetData: () => {
         set({
@@ -1772,7 +1792,7 @@ export const useStore = create<GuardState>()(
     {
       name: 'guard-user-profile',
       storage: createJSONStorage(() => AsyncStorage),
-      version: 10,
+      version: 11,
       // Migrate from v1 (4-axis profile) to v2 (12-axis profile + new fields).
       migrate: (persistedState: unknown, version: number) => {
         if (!persistedState || typeof persistedState !== 'object') return persistedState;
@@ -1855,6 +1875,12 @@ export const useStore = create<GuardState>()(
           s.pinHashPresent = s.pinHashPresent ?? false;
           s.biometricEnabled = s.biometricEnabled ?? false;
           s.lockTimeoutMode = s.lockTimeoutMode ?? 'immediate';
+        }
+        if (version < 11) {
+          // App is now dark-only — drop the light theme toggle.
+          delete s.themePreference;
+          s.mantraRotationSeed = s.mantraRotationSeed ?? Math.floor(Math.random() * 1_000_000);
+          s.lastMantraRotationDayIndex = s.lastMantraRotationDayIndex ?? null;
         }
         return s;
       },

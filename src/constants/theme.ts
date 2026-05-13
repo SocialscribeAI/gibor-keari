@@ -1,12 +1,9 @@
-import { useColorScheme } from 'nativewind';
-
 /**
  * Gibor KeAri — design tokens & theme hook.
  *
- * className-based colors (bg, text, border) resolve to CSS variables
- * and flip with the theme automatically. Use `useTheme()` for anything
- * that can't be expressed as a Tailwind class — lucide `color` props,
- * SVG strokes, Slider / Switch tints, etc.
+ * Single dark palette. `useTheme()` is preserved as a hook for call-site API
+ * stability — every consumer in the app calls it. It now returns the static
+ * dark palette without subscribing to any color-scheme source.
  */
 
 export interface ThemePalette {
@@ -26,22 +23,6 @@ export interface ThemePalette {
   hairline: string;
 }
 
-export const LIGHT: ThemePalette = {
-  bg: '#F7F1E5',
-  surface: '#FFFBF0',
-  surface2: '#F0E7D1',
-  primary: '#1B2A4E',
-  accent: '#C89A3C',
-  success: '#7A9D7E',
-  danger: '#B23D2B',
-  text: '#1B2A4E',
-  muted: '#717891',
-  onAccent: '#1B2A4E',
-  textDim: 'rgba(27, 42, 78, 0.5)',
-  mutedStrong: 'rgba(27, 42, 78, 0.7)',
-  hairline: 'rgba(27, 42, 78, 0.15)',
-};
-
 export const DARK: ThemePalette = {
   bg: '#0F1120',
   surface: '#1A1E35',
@@ -58,18 +39,10 @@ export const DARK: ThemePalette = {
   hairline: 'rgba(240, 230, 210, 0.15)',
 };
 
-/** Returns the active palette. Re-renders when theme flips. */
-export function useTheme(): ThemePalette & { scheme: 'light' | 'dark' } {
-  const { colorScheme } = useColorScheme();
-  const resolved = colorScheme === 'light' ? LIGHT : DARK;
-  return { ...resolved, scheme: colorScheme === 'light' ? 'light' : 'dark' };
+export function useTheme(): ThemePalette & { scheme: 'dark' } {
+  return { ...DARK, scheme: 'dark' };
 }
 
-// ---------------------------------------------------------------------------
-// Legacy `COLORS` export — still imported by a couple of older components.
-// Points at DARK so they keep rendering correctly; migrate to useTheme() over
-// time.
-// ---------------------------------------------------------------------------
 export const COLORS = {
   primary: DARK.primary,
   accent: DARK.accent,
@@ -99,7 +72,6 @@ export const SPACING = {
   xxl: '48px',
 };
 
-/** Brand constants — single source of truth for name / tagline. */
 export const BRAND = {
   name: 'Gibor KeAri',
   nameShort: 'Gibor',
