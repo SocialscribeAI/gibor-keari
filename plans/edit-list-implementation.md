@@ -7,6 +7,7 @@
 
 ---
 y
+
 ## 1. Context
 
 The user reviewed every screen of Guard (Jewish men's recovery app, React Native + Expo SDK 52, Zustand, optional Supabase community) and wrote a punch-list of edits. I interpreted each item, ran diagnostic exploration to confirm what's bug vs. UX vs. missing feature, and surfaced 4 directional questions. The user answered them. Those answers, combined with the diagnostic findings, constrain how this plan is built.

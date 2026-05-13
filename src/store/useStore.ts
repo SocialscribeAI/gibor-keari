@@ -743,6 +743,10 @@ interface GuardState {
   mantraRotationSeed: number;
   lastMantraRotationDayIndex: number | null;
 
+  // Onboarding intake
+  whyReasons: string[]; // up to 3 free-text reasons surfaced during weakness
+  onboardingVersion: number; // bumped when the intake flow expands so existing users can re-enter
+
   // Coach memory (persistent across sessions)
   coachMessages: CoachMessage[];
   coachSummary: string | null; // rolling AI-generated summary of older turns
@@ -902,6 +906,12 @@ interface GuardState {
 
   // Daily mantra rotation — recompute dailyMantraIndex if the local day rolled over.
   rotateMantraIfNeeded: () => void;
+
+  // Onboarding intake (new in v12)
+  setWhyReasons: (reasons: string[]) => void;
+  setOnboardingVersion: (version: number) => void;
+  requestOnboardingRerun: () => void; // existing user opts into the v2 deep intake
+  dismissOnboardingUpgrade: () => void; // existing user declines — never prompted again
 }
 
 // =============================================================================
@@ -974,6 +984,9 @@ export const useStore = create<GuardState>()(
 
       mantraRotationSeed: Math.floor(Math.random() * 1_000_000),
       lastMantraRotationDayIndex: null,
+
+      whyReasons: [],
+      onboardingVersion: 0,
 
       coachMessages: [],
       coachSummary: null,
@@ -1506,6 +1519,15 @@ export const useStore = create<GuardState>()(
       setBiometricEnabled: (enabled) => set({ biometricEnabled: enabled }),
       setLockTimeoutMode: (mode) => set({ lockTimeoutMode: mode }),
 
+      setWhyReasons: (reasons) =>
+        set({ whyReasons: reasons.map((r) => r.trim()).filter(Boolean).slice(0, 3) }),
+
+      setOnboardingVersion: (version) => set({ onboardingVersion: version }),
+
+      requestOnboardingRerun: () => set({ hasCompletedOnboarding: false }),
+
+      dismissOnboardingUpgrade: () => set({ onboardingVersion: 2 }),
+
       rotateMantraIfNeeded: () => {
         const { mantras, mantraRotationSeed, lastMantraRotationDayIndex, coachStylePrefs } = get();
         if (!mantras.length) return;
@@ -1792,7 +1814,7 @@ export const useStore = create<GuardState>()(
     {
       name: 'guard-user-profile',
       storage: createJSONStorage(() => AsyncStorage),
-      version: 11,
+      version: 12,
       // Migrate from v1 (4-axis profile) to v2 (12-axis profile + new fields).
       migrate: (persistedState: unknown, version: number) => {
         if (!persistedState || typeof persistedState !== 'object') return persistedState;
@@ -1881,6 +1903,16 @@ export const useStore = create<GuardState>()(
           delete s.themePreference;
           s.mantraRotationSeed = s.mantraRotationSeed ?? Math.floor(Math.random() * 1_000_000);
           s.lastMantraRotationDayIndex = s.lastMantraRotationDayIndex ?? null;
+        }
+        if (version < 12) {
+          // Deep onboarding intake — capture all 12 axes + identity + vow + why
+          // up front. Existing users get an upgrade CTA prompted from Home; the
+          // intake itself only runs when they accept.
+          s.whyReasons = s.whyReasons ?? [];
+          // Anyone already past v1 onboarding is treated as version 1 (legacy
+          // 5-step minimum). The new flow is version 2; the upgrade CTA fires
+          // when hasCompletedOnboarding === true && onboardingVersion < 2.
+          s.onboardingVersion = s.hasCompletedOnboarding ? 1 : 0;
         }
         return s;
       },

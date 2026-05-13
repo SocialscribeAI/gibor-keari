@@ -13,6 +13,7 @@ import { MilestoneCelebration } from '../components/MilestoneCelebration';
 import { CheckInModal } from '../components/CheckInModal';
 import { StreakIncentiveBar } from '../components/StreakIncentiveBar';
 import { DangerMode } from '../components/DangerMode';
+import { OnboardingUpgradeBanner } from '../components/OnboardingUpgradeBanner';
 
 const MILESTONES = [7, 14, 30, 60, 90, 180, 365];
 
@@ -77,6 +78,8 @@ export const Home: React.FC = () => {
 
   return (
     <Screen>
+      <OnboardingUpgradeBanner />
+
       {/* Level label */}
       <View className="items-center mt-2 mb-1">
         <Text className="text-guard-accent text-[11px] font-black uppercase tracking-widest">{level}</Text>
