@@ -10,12 +10,12 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { MotiView } from 'moti';
-import { Sparkles, Send } from 'lucide-react-native';
+import { Sparkles, Send, ThumbsUp, ThumbsDown } from 'lucide-react-native';
 import { Screen } from '../components/Screen';
 import { PrivacyNote } from '../components/PrivacyNote';
 import { useStore } from '../store/useStore';
 import { isAiConfigured } from '../services/aiService';
-import { generateCoachReply, countRecent } from '../services/aiActions';
+import { generateCoachReply, countRecent, inferStyleAxes } from '../services/aiActions';
 import { useTheme } from '../constants/theme';
 
 interface Message {
@@ -47,6 +47,8 @@ export const Coach: React.FC<Props> = ({ onNavigateToAiConfig }) => {
     tacticEffectiveness,
     appendCoachMessage,
     clearCoachMessages,
+    coachMessageFeedback,
+    recordCoachFeedback,
   } = useStore();
 
   const aiCfg = useMemo(
@@ -192,22 +194,52 @@ export const Coach: React.FC<Props> = ({ onNavigateToAiConfig }) => {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: 20 }}
         >
-          {visibleMessages.map((m) => (
-            <MotiView
-              key={m.id}
-              from={{ opacity: 0, translateY: 6 }}
-              animate={{ opacity: 1, translateY: 0 }}
-              className={`mb-3 max-w-[85%] p-4 rounded-2xl ${
-                m.role === 'user'
-                  ? 'bg-guard-accent self-end'
-                  : 'bg-guard-surface border border-guard-primary/30 self-start'
-              }`}
-            >
-              <Text className={m.role === 'user' ? 'text-guard-on-accent' : 'text-white/90'}>
-                {m.text}
-              </Text>
-            </MotiView>
-          ))}
+          {visibleMessages.map((m) => {
+            const showFeedback = m.role === 'coach' && m.id !== 'seed';
+            const rating = coachMessageFeedback[m.id];
+            return (
+              <MotiView
+                key={m.id}
+                from={{ opacity: 0, translateY: 6 }}
+                animate={{ opacity: 1, translateY: 0 }}
+                className={`mb-3 max-w-[85%] p-4 rounded-2xl ${
+                  m.role === 'user'
+                    ? 'bg-guard-accent self-end'
+                    : 'bg-guard-surface border border-guard-primary/30 self-start'
+                }`}
+              >
+                <Text className={m.role === 'user' ? 'text-guard-on-accent' : 'text-white/90'}>
+                  {m.text}
+                </Text>
+                {showFeedback && (
+                  <View className="flex-row mt-3 gap-2">
+                    <Pressable
+                      onPress={() => recordCoachFeedback(m.id, 'up', inferStyleAxes(m.text))}
+                      hitSlop={6}
+                      style={{
+                        padding: 6,
+                        borderRadius: 8,
+                        backgroundColor: rating === 'up' ? 'rgba(30,138,74,0.20)' : 'transparent',
+                      }}
+                    >
+                      <ThumbsUp size={14} color={rating === 'up' ? theme.success : theme.muted} />
+                    </Pressable>
+                    <Pressable
+                      onPress={() => recordCoachFeedback(m.id, 'down', inferStyleAxes(m.text))}
+                      hitSlop={6}
+                      style={{
+                        padding: 6,
+                        borderRadius: 8,
+                        backgroundColor: rating === 'down' ? 'rgba(192,57,43,0.20)' : 'transparent',
+                      }}
+                    >
+                      <ThumbsDown size={14} color={rating === 'down' ? theme.danger : theme.muted} />
+                    </Pressable>
+                  </View>
+                )}
+              </MotiView>
+            );
+          })}
           {loading && (
             <View
               className="self-start mb-3 p-4 rounded-2xl flex-row items-center"

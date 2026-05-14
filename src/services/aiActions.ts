@@ -19,6 +19,8 @@ import type {
   FallEvent,
   CloseCallEvent,
   CheckInEvent,
+  StyleSignals,
+  StyleAxis,
 } from '../store/useStore';
 
 // ---------------------------------------------------------------------------
@@ -450,11 +452,98 @@ function ambientInferenceDirective(mode: InferenceMode): string {
   ].join('\n');
 }
 
+// ---------------------------------------------------------------------------
+// Style signals → prompt directives. Feedback-based steering: 👍/👎 on coach
+// replies nudge running averages on three axes (preferredTone, preferredLength,
+// preferredSpiritualWeight). Each axis only emits a directive once the signal
+// has accumulated past a threshold so a single thumbs-down doesn't whip the
+// coach 180°. After 5 consecutive 👎 on any axis, an escalation line fires
+// telling the coach to make a noticeable correction.
+// ---------------------------------------------------------------------------
+
+const STYLE_SIGNAL_THRESHOLD = 0.15;
+
+function styleSignalsDirective(signals: StyleSignals | null | undefined): string {
+  if (!signals) return '';
+  if (signals.totalFeedbacks === 0) return '';
+
+  const lines: string[] = ['', 'FEEDBACK STEERING — running averages from this user\'s thumbs ratings.'];
+  let pushed = false;
+
+  if (signals.preferredLength >= STYLE_SIGNAL_THRESHOLD) {
+    lines.push('- This user prefers LONGER, thorough replies. Don\'t truncate; build out the answer.');
+    pushed = true;
+  } else if (signals.preferredLength <= -STYLE_SIGNAL_THRESHOLD) {
+    lines.push('- This user prefers SHORTER replies. Keep it under 3 short paragraphs unless asked.');
+    pushed = true;
+  }
+
+  if (signals.preferredSpiritualWeight >= STYLE_SIGNAL_THRESHOLD) {
+    lines.push('- This user resonates with Torah / Chazal framing. Lead with sources when it fits naturally.');
+    pushed = true;
+  } else if (signals.preferredSpiritualWeight <= -STYLE_SIGNAL_THRESHOLD) {
+    lines.push('- This user prefers less explicit Torah citation. Stay practical; use sources sparingly.');
+    pushed = true;
+  }
+
+  if (signals.preferredTone >= STYLE_SIGNAL_THRESHOLD) {
+    lines.push('- This user wants you to push HARDER. Less softening, more directness.');
+    pushed = true;
+  } else if (signals.preferredTone <= -STYLE_SIGNAL_THRESHOLD) {
+    lines.push('- This user wants you GENTLER. Soften your edges; lead with empathy before challenge.');
+    pushed = true;
+  }
+
+  if ((signals.consecutiveDislikes ?? 0) >= 5) {
+    lines.push('- ⚠ Five consecutive 👎 in a row. Make a noticeable correction in this reply — the user has been signaling something isn\'t landing.');
+    pushed = true;
+  }
+
+  return pushed ? lines.join('\n') : '';
+}
+
+/**
+ * Heuristic: given a coach reply, infer which style axes it represents and in
+ * which direction. The store's `recordCoachFeedback` then multiplies these by
+ * the thumb direction (+1 / -1) to nudge the running averages correctly.
+ *
+ * Returning `+1` on length means "this reply is long" — 👍 nudges
+ * `preferredLength` toward +1 (longer); 👎 nudges it toward -1 (shorter).
+ * Absence from the returned map means "no signal on this axis from this reply"
+ * (the running average is untouched).
+ */
+export function inferStyleAxes(text: string): Partial<Record<StyleAxis, 1 | -1>> {
+  const out: Partial<Record<StyleAxis, 1 | -1>> = {};
+  const words = text.trim().split(/\s+/).filter(Boolean).length;
+  if (words >= 120) out.preferredLength = 1;
+  else if (words > 0 && words <= 30) out.preferredLength = -1;
+
+  // Spiritual signal — case-insensitive substring match against a curated
+  // vocabulary. Absence ≠ secular; we don't push the average in the secular
+  // direction unless the user 👍's a secular reply (caught indirectly when a
+  // reply without these markers gets thumbed up).
+  const lower = text.toLowerCase();
+  const spiritualMarkers = [
+    'hashem', 'torah', 'gemara', 'gemarah', 'chazal', 'mishna', 'mishnah',
+    'sefaria', 'ramchal', 'rambam', 'tanya', 'chassidus', 'mussar',
+    'mesillas', 'mesilas', 'avodah', 'yetzer', 'gibor', 'kovesh',
+    'pirkei avot', 'pirkei avos', 'parsha', 'shabbos', 'shabbat',
+  ];
+  // Hebrew / Aramaic unicode block (rough check) — anything in the script
+  // tilts spiritual regardless of vocabulary.
+  const hasHebrew = /[֐-׿]/.test(text);
+  const hasSpiritualWord = spiritualMarkers.some((w) => lower.includes(w));
+  if (hasHebrew || hasSpiritualWord) out.preferredSpiritualWeight = 1;
+
+  return out;
+}
+
 function basePreamble(
   profile: PersonalityProfile,
   stylePrefs?: CoachStylePrefs | null,
   effectiveness?: Record<string, TacticEffectivenessEntry> | null,
   therapist?: TherapistContext | null,
+  styleSignals?: StyleSignals | null,
 ): string {
   const parts: string[] = [
     'You are Guard / Gibor KeAri — a private, Torah-grounded recovery coach for a',
@@ -474,6 +563,7 @@ function basePreamble(
     '',
     SEFARIA_RULE,
     coachStyleDirective(stylePrefs, effectiveness),
+    styleSignalsDirective(styleSignals),
   );
 
   if (therapist) {
@@ -557,7 +647,13 @@ export async function generateCoachReply(
   storeState.markCoachInteraction();
 
   const baseSystem = [
-    basePreamble(profile, context.stylePrefs, context.tacticEffectiveness, therapistContext),
+    basePreamble(
+      profile,
+      context.stylePrefs,
+      context.tacticEffectiveness,
+      therapistContext,
+      storeState.styleSignals,
+    ),
     '',
     'LIVE CONTEXT (refreshed every turn):',
     renderLiveSnapshot(),
