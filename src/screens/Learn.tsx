@@ -23,6 +23,9 @@ import {
   Clock,
   Zap,
   ChevronLeft,
+  Shuffle,
+  Star,
+  Flame,
 } from 'lucide-react-native';
 import { Screen } from '../components/Screen';
 import { useStore } from '../store/useStore';
@@ -121,7 +124,7 @@ export const Learn: React.FC<LearnProps> = ({ onBack }) => {
   );
   const aiOn = isAiConfigured(aiCfg);
 
-  const isJewish =
+  const isJewishByProfile =
     personalityProfile.religiousLevel === 'traditional' ||
     personalityProfile.religiousLevel === 'modern-orthodox' ||
     personalityProfile.religiousLevel === 'chareidi' ||
@@ -129,10 +132,21 @@ export const Learn: React.FC<LearnProps> = ({ onBack }) => {
     personalityProfile.religiousLevel === 'baal-teshuva' ||
     personalityProfile.religiousLevel === 'other';
 
-  const availableTopics = useMemo(
-    () => ALL_TOPICS.filter((t) => !t.jewishOnly || isJewish),
-    [isJewish],
+  // Per-session framing toggle. Defaults to the user's profile but the user
+  // can flip it for the current Learn session — e.g. a chareidi user wanting
+  // pure neuroscience for one search, or a secular user dipping into mussar.
+  // Resets to profile default each time the screen mounts.
+  const [framing, setFraming] = useState<'religious' | 'secular' | 'mixed'>(
+    isJewishByProfile ? 'mixed' : 'secular',
   );
+
+  const isJewish = framing !== 'secular' && isJewishByProfile;
+
+  const availableTopics = useMemo(() => {
+    if (framing === 'secular') return ALL_TOPICS.filter((t) => !t.jewishOnly);
+    if (framing === 'religious') return ALL_TOPICS.filter((t) => t.jewishOnly);
+    return ALL_TOPICS.filter((t) => !t.jewishOnly || isJewishByProfile);
+  }, [framing, isJewishByProfile]);
 
   const [selectedTopics, setSelectedTopics] = useState<string[]>([]);
   const [selectedKinds, setSelectedKinds] = useState<RecKind[]>([]);
@@ -153,26 +167,49 @@ export const Learn: React.FC<LearnProps> = ({ onBack }) => {
   const toggleKind = (k: RecKind) =>
     setSelectedKinds((prev) => (prev.includes(k) ? prev.filter((x) => x !== k) : [...prev, k]));
 
-  const fetchRecs = async () => {
+  const fetchRecs = async (opts?: { surprise?: boolean }) => {
     if (!aiOn) return;
     setLoading(true);
     setError(null);
     try {
-      const topicPrompts = selectedTopics
-        .map((id) => availableTopics.find((t) => t.id === id)?.prompt)
-        .filter((x): x is string => !!x);
+      let topicPrompts: string[];
+      let kindsToUse: RecKind[];
+      let seedToUse: string;
 
-      const struggleSummary =
-        seed.trim() ||
-        summarizeRecentTriggers(fallEvents ?? [], closeCallEvents ?? [], checkInEvents ?? []) ||
-        '';
+      if (opts?.surprise) {
+        // Surprise me — pick one random topic from what's available in the
+        // current framing, ignore filters, and let the AI pick a format.
+        const pool = availableTopics.length ? availableTopics : ALL_TOPICS;
+        const random = pool[Math.floor(Math.random() * pool.length)];
+        topicPrompts = [random.prompt];
+        kindsToUse = [];
+        seedToUse = '';
+      } else {
+        topicPrompts = selectedTopics
+          .map((id) => availableTopics.find((t) => t.id === id)?.prompt)
+          .filter((x): x is string => !!x);
+        kindsToUse = selectedKinds;
+        seedToUse =
+          seed.trim() ||
+          summarizeRecentTriggers(fallEvents ?? [], closeCallEvents ?? [], checkInEvents ?? []) ||
+          '';
+      }
 
       const timeMin = TIME_OPTIONS.find((t) => t.id === timeBudget)?.minutes;
 
-      const res = await recommendLearnContent(aiCfg, personalityProfile, struggleSummary, {
+      // Profile override for the current framing — flip religiousLevel to
+      // 'secular' if the user toggled away from their default; flip to
+      // 'modern-orthodox' if they toggled into religious without one set.
+      // Keeps the AI's tone selection aligned with the visible framing.
+      const profileForRequest =
+        framing === 'secular'
+          ? { ...personalityProfile, religiousLevel: 'secular' as const }
+          : personalityProfile;
+
+      const res = await recommendLearnContent(aiCfg, profileForRequest, seedToUse, {
         topics: topicPrompts,
-        kinds: selectedKinds,
-        count: 6,
+        kinds: kindsToUse,
+        count: opts?.surprise ? 3 : 6,
         timeBudgetMin: timeMin,
       });
 
@@ -181,7 +218,7 @@ export const Learn: React.FC<LearnProps> = ({ onBack }) => {
         setRecs([]);
       } else {
         setRecs(res.data);
-        setTldrs({}); // reset TL;DRs when new recs arrive
+        setTldrs({});
       }
     } catch (e: any) {
       setError(e?.message || 'Something went wrong.');
@@ -263,6 +300,80 @@ export const Learn: React.FC<LearnProps> = ({ onBack }) => {
             AI-curated videos, shiurim, podcasts, and books that meet you where you are.
           </Text>
         </View>
+
+        {/* Framing toggle — session-scoped. The default tracks the user's
+            profile; flipping it lets a chareidi user grab pure neuroscience
+            for one search, or a secular user dip into mussar. */}
+        {isJewishByProfile && (
+          <View className="mb-5">
+            <Text
+              className="text-xs font-black uppercase mb-3"
+              style={{ color: theme.accent, letterSpacing: 2 }}
+            >
+              Framing (this session)
+            </Text>
+            <View className="flex-row gap-2">
+              {(
+                [
+                  { id: 'mixed', label: 'Mixed', icon: Star },
+                  { id: 'religious', label: 'Religious', icon: Flame },
+                  { id: 'secular', label: 'Secular', icon: BookOpen },
+                ] as const
+              ).map((opt) => {
+                const active = framing === opt.id;
+                const Icon = opt.icon;
+                return (
+                  <Pressable
+                    key={opt.id}
+                    onPress={() => {
+                      setFraming(opt.id);
+                      // Topic and kind selections may no longer be valid under
+                      // the new framing — clear them so the user reconsiders.
+                      setSelectedTopics([]);
+                      setSelectedKinds([]);
+                    }}
+                    className="flex-1 flex-row items-center justify-center rounded-2xl py-3 px-3"
+                    style={{
+                      backgroundColor: active ? theme.accent : theme.surface,
+                      borderWidth: 1,
+                      borderColor: active ? theme.accent : theme.hairline,
+                    }}
+                  >
+                    <Icon size={13} color={active ? theme.onAccent : theme.text} />
+                    <Text
+                      className="text-xs font-black ml-1.5"
+                      style={{ color: active ? theme.onAccent : theme.text }}
+                    >
+                      {opt.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+        )}
+
+        {/* Surprise me — random topic, AI picks the format. The user's escape
+            from decision fatigue when they don't know what to look for. */}
+        <Pressable
+          onPress={() => fetchRecs({ surprise: true })}
+          disabled={!aiOn || loading}
+          className="flex-row items-center justify-center mb-5 rounded-2xl py-4"
+          style={{
+            backgroundColor: 'rgba(232,160,32,0.10)',
+            borderWidth: 1,
+            borderColor: 'rgba(232,160,32,0.40)',
+            opacity: !aiOn ? 0.5 : 1,
+          }}
+        >
+          <Shuffle size={15} color={theme.accent} />
+          <Text
+            className="font-black uppercase ml-2"
+            style={{ color: theme.accent, letterSpacing: 2, fontSize: 12 }}
+          >
+            Surprise me
+          </Text>
+        </Pressable>
 
         {!aiOn && (
           <View
@@ -415,7 +526,7 @@ export const Learn: React.FC<LearnProps> = ({ onBack }) => {
 
         {/* Action button */}
         <Pressable
-          onPress={fetchRecs}
+          onPress={() => fetchRecs()}
           disabled={!aiOn || loading}
           className="rounded-2xl py-4 flex-row items-center justify-center mb-6"
           style={{

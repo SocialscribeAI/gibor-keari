@@ -1,5 +1,5 @@
 import { format, parseISO, eachDayOfInterval, subDays, isSameMonth, getDay, getHours } from 'date-fns';
-import type { LogEntry } from '../store/useStore';
+import type { LogEntry, CheckInEvent } from '../store/useStore';
 
 export type { LogEntry };
 export type CalendarLog = Record<string, LogEntry>;
@@ -165,11 +165,24 @@ export const getStreakHistory = (log: CalendarLog): StreakRecord[] => {
 };
 
 /**
- * Returns a human-readable insight based on historical patterns.
+ * Returns a human-readable insight based on historical patterns. Now
+ * symmetric — when there's enough positive-signal data from check-ins, returns
+ * a "what works for you" insight rather than only "what risks you."
  */
-export const getInsightMessage = (log: CalendarLog): string => {
+export const getInsightMessage = (
+  log: CalendarLog,
+  checkInEvents?: CheckInEvent[],
+): string => {
+  // Try positive insights first when we have enough check-in data. Symmetric
+  // by design — the pattern engine should tell you what's *working* as much
+  // as what's risky.
+  if (checkInEvents && checkInEvents.length >= 7) {
+    const positive = getPositiveInsight(checkInEvents);
+    if (positive) return positive;
+  }
+
   const dangerDays = getDangerDays(log);
-  
+
   if (dangerDays.length > 0) {
     const daysStr = dangerDays.join('s and ') + 's';
     if (dangerDays.includes('Friday')) {
@@ -185,6 +198,95 @@ export const getInsightMessage = (log: CalendarLog): string => {
 
   return "Consistency is the seed of victory. Log your progress every day.";
 };
+
+/**
+ * Mines the check-in event log for "what tends to correlate with your good
+ * days." Three signals examined: sleep hours, exercise yes/no, and exercise +
+ * sleep combined. Each compares the mean mood (or rate of "clean" status)
+ * across cohorts to flag a meaningful gap (≥1.0 mood point or ≥20% clean
+ * rate). Returns null if no clear signal — caller falls through to the
+ * negative-side messages.
+ */
+export function getPositiveInsight(checkIns: CheckInEvent[]): string | null {
+  if (checkIns.length < 7) return null;
+
+  // ─── Sleep ───
+  const lowSleep = checkIns.filter((c) => typeof c.sleepHours === 'number' && c.sleepHours < 7);
+  const highSleep = checkIns.filter((c) => typeof c.sleepHours === 'number' && c.sleepHours >= 7);
+  if (lowSleep.length >= 3 && highSleep.length >= 3) {
+    const lowMood = avg(lowSleep.map((c) => c.mood));
+    const highMood = avg(highSleep.map((c) => c.mood));
+    if (highMood - lowMood >= 1.0) {
+      return `Your mood is meaningfully better when you sleep 7+ hours (${highMood.toFixed(1)} vs ${lowMood.toFixed(1)} out of 10). Sleep is a high-leverage lever for you.`;
+    }
+    const highCleanRate = rate(highSleep, (c) => c.status === 'clean');
+    const lowCleanRate = rate(lowSleep, (c) => c.status === 'clean');
+    if (highCleanRate - lowCleanRate >= 0.2) {
+      return `You're cleaner on days after 7+ hours sleep — ${Math.round(highCleanRate * 100)}% vs ${Math.round(lowCleanRate * 100)}%. Guard your sleep.`;
+    }
+  }
+
+  // ─── Exercise ───
+  const exYes = checkIns.filter((c) => c.exercised === true);
+  const exNo = checkIns.filter((c) => c.exercised === false);
+  if (exYes.length >= 3 && exNo.length >= 3) {
+    const yesMood = avg(exYes.map((c) => c.mood));
+    const noMood = avg(exNo.map((c) => c.mood));
+    if (yesMood - noMood >= 1.0) {
+      return `Days you moved your body land at ${yesMood.toFixed(1)}/10 mood vs ${noMood.toFixed(1)} when you didn't. Worth the 20 minutes.`;
+    }
+    const yesCleanRate = rate(exYes, (c) => c.status === 'clean');
+    const noCleanRate = rate(exNo, (c) => c.status === 'clean');
+    if (yesCleanRate - noCleanRate >= 0.2) {
+      return `On exercise days you're clean ${Math.round(yesCleanRate * 100)}% of the time — ${Math.round(yesCleanRate * 100) - Math.round(noCleanRate * 100)} points higher than no-exercise days.`;
+    }
+  }
+
+  // ─── HALT (negative — but informative) ───
+  const haltDays = checkIns.filter(
+    (c) => c.halt.hungry || c.halt.angry || c.halt.lonely || c.halt.tired,
+  );
+  const noHaltDays = checkIns.filter(
+    (c) => !c.halt.hungry && !c.halt.angry && !c.halt.lonely && !c.halt.tired,
+  );
+  if (haltDays.length >= 3 && noHaltDays.length >= 3) {
+    const haltCleanRate = rate(haltDays, (c) => c.status === 'clean');
+    const noHaltCleanRate = rate(noHaltDays, (c) => c.status === 'clean');
+    if (noHaltCleanRate - haltCleanRate >= 0.25) {
+      return `When you're Hungry / Angry / Lonely / Tired, your clean rate drops to ${Math.round(haltCleanRate * 100)}% from ${Math.round(noHaltCleanRate * 100)}%. Address the state, not the urge.`;
+    }
+  }
+
+  // ─── Streak of clean ───
+  const cleanStreak = recentCleanStreak(checkIns);
+  if (cleanStreak >= 5) {
+    return `${cleanStreak} clean check-ins in a row. Whatever you're doing right now — keep doing it.`;
+  }
+
+  return null;
+}
+
+function avg(xs: number[]): number {
+  if (!xs.length) return 0;
+  return xs.reduce((a, b) => a + b, 0) / xs.length;
+}
+
+function rate<T>(xs: T[], pred: (x: T) => boolean): number {
+  if (!xs.length) return 0;
+  return xs.filter(pred).length / xs.length;
+}
+
+function recentCleanStreak(checkIns: CheckInEvent[]): number {
+  // CheckIns aren't guaranteed sorted, so sort by dayKey ascending and walk
+  // backwards counting consecutive 'clean'.
+  const sorted = [...checkIns].sort((a, b) => a.dayKey.localeCompare(b.dayKey));
+  let streak = 0;
+  for (let i = sorted.length - 1; i >= 0; i--) {
+    if (sorted[i].status === 'clean') streak++;
+    else break;
+  }
+  return streak;
+}
 
 /**
  * Determines a motivation level based on the last 14 days of activity.

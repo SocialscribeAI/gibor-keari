@@ -111,6 +111,7 @@ export const PostFallProtocol: React.FC<Props> = ({ isOpen, onClose }) => {
     dangerWatchlist,
     identityStatement,
     whyReasons,
+    disciplineRule,
   } = useStore();
   // Durable identity statement captured in onboarding — surfaced in step 8 so
   // the user is reminded of who they said they are *before* writing a fresh
@@ -558,6 +559,29 @@ export const PostFallProtocol: React.FC<Props> = ({ isOpen, onClose }) => {
             title="Next 24 hours"
             subtitle="Concrete actions. One line each. The plan is the win."
           >
+            {disciplineRule && (
+              <View
+                className="rounded-3xl p-5 mb-5"
+                style={{
+                  backgroundColor: 'rgba(232,160,32,0.10)',
+                  borderWidth: 1,
+                  borderColor: 'rgba(232,160,32,0.45)',
+                }}
+              >
+                <Text
+                  className="text-[10px] font-black uppercase mb-2"
+                  style={{ color: theme.accent, letterSpacing: 2 }}
+                >
+                  Your discipline rule
+                </Text>
+                <Text className="font-black text-lg leading-7 mb-2" style={{ color: theme.text }}>
+                  "{disciplineRule.body}"
+                </Text>
+                <Text className="text-xs leading-5" style={{ color: theme.muted }}>
+                  You committed to this when you were strong. Within {disciplineRule.durationHours}h, complete it — then mark it done. This is agency, not punishment.
+                </Text>
+              </View>
+            )}
             {[
               { key: 'tonight', icon: Moon, label: 'Tonight' },
               { key: 'morning', icon: Sunrise, label: 'Tomorrow morning' },

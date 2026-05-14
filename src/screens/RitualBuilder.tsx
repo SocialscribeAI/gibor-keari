@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { View, Text, Pressable, TextInput, Alert } from 'react-native';
+import { View, Text, Pressable, TextInput, Alert, Modal, ScrollView } from 'react-native';
 import { MotiView } from 'moti';
 import {
   ArrowLeft,
@@ -12,10 +12,18 @@ import {
   Clock,
   X as XIcon,
   Sparkles,
+  Library,
 } from 'lucide-react-native';
 import { Screen } from '../components/Screen';
 import { useStore } from '../store/useStore';
 import { useTheme } from '../constants/theme';
+import {
+  filterRitualLibrary,
+  CATEGORY_LABELS as RITUAL_CATEGORY_LABELS,
+  CATEGORY_ORDER as RITUAL_CATEGORY_ORDER,
+  type RitualCategory,
+  type RitualEntry,
+} from '../constants/ritualLibrary';
 
 interface Props {
   onBack: () => void;
@@ -43,6 +51,7 @@ export const RitualBuilder: React.FC<Props> = ({ onBack }) => {
     completeRitual,
     ritualStreak,
     setRitualTime,
+    personalityProfile,
   } = useStore();
   const theme = useTheme();
   const [draft, setDraft] = useState('');
@@ -51,6 +60,7 @@ export const RitualBuilder: React.FC<Props> = ({ onBack }) => {
   const [timeDraft, setTimeDraft] = useState('');
   const [timeError, setTimeError] = useState('');
   const [setupDismissed, setSetupDismissed] = useState(false);
+  const [libraryOpen, setLibraryOpen] = useState(false);
 
   const enabled = rituals.filter((r) => r.enabled);
   const anyHasTime = useMemo(
@@ -279,6 +289,21 @@ export const RitualBuilder: React.FC<Props> = ({ onBack }) => {
         </View>
       )}
 
+      <Pressable
+        onPress={() => setLibraryOpen(true)}
+        className="flex-row items-center justify-center mb-4 py-4 rounded-3xl"
+        style={{
+          backgroundColor: 'rgba(232,160,32,0.10)',
+          borderWidth: 1,
+          borderColor: 'rgba(232,160,32,0.40)',
+        }}
+      >
+        <Library size={16} color={theme.accent} />
+        <Text className="font-black uppercase ml-2 text-xs" style={{ color: theme.accent, letterSpacing: 2 }}>
+          Browse the library
+        </Text>
+      </Pressable>
+
       <View className="bg-guard-surface border border-guard-primary/30 rounded-3xl p-5 mb-6">
         <Text className="text-guard-accent text-xs uppercase tracking-widest mb-3">Add step</Text>
         <TextInput
@@ -301,6 +326,30 @@ export const RitualBuilder: React.FC<Props> = ({ onBack }) => {
           </Text>
         </Pressable>
       </View>
+
+      <RitualLibraryModal
+        visible={libraryOpen}
+        onClose={() => setLibraryOpen(false)}
+        existing={rituals}
+        religiousLevel={personalityProfile.religiousLevel}
+        onPick={(entry) => {
+          // Idempotent: don't add a duplicate if the user already has the
+          // same text. Always set the suggested time if the entry has one.
+          const existing = rituals.find((r) => r.text === entry.text);
+          if (existing) {
+            if (entry.suggestedTime && !existing.scheduledTime) {
+              setRitualTime(existing.id, entry.suggestedTime);
+            }
+            if (!existing.enabled) toggleRitual(existing.id);
+          } else {
+            addRitual(entry.text);
+            if (entry.suggestedTime) {
+              const fresh = useStore.getState().rituals.find((r) => r.text === entry.text);
+              if (fresh) setRitualTime(fresh.id, entry.suggestedTime);
+            }
+          }
+        }}
+      />
 
       {rituals.map((r, i) => (
         <View
@@ -418,5 +467,251 @@ export const RitualBuilder: React.FC<Props> = ({ onBack }) => {
         </View>
       ))}
     </Screen>
+  );
+};
+
+// =============================================================================
+// RitualLibraryModal — browse curated rituals, filtered by religious level
+// and category. Tap to add (idempotent, also auto-sets a suggested time).
+// =============================================================================
+
+interface RitualLibraryModalProps {
+  visible: boolean;
+  onClose: () => void;
+  existing: { id: string; text: string; enabled: boolean }[];
+  religiousLevel: any;
+  onPick: (entry: RitualEntry) => void;
+}
+
+const RitualLibraryModal: React.FC<RitualLibraryModalProps> = ({
+  visible,
+  onClose,
+  existing,
+  religiousLevel,
+  onPick,
+}) => {
+  const theme = useTheme();
+  const [category, setCategory] = useState<RitualCategory | null>(null);
+
+  const filtered = useMemo(() => {
+    const set = category ? new Set<RitualCategory>([category]) : undefined;
+    return filterRitualLibrary(religiousLevel, set);
+  }, [religiousLevel, category]);
+
+  const availableCategories = useMemo(() => {
+    const baseline = filterRitualLibrary(religiousLevel);
+    const set = new Set<RitualCategory>();
+    for (const r of baseline) set.add(r.category);
+    // Honor the canonical order from constants.
+    return RITUAL_CATEGORY_ORDER.filter((c) => set.has(c));
+  }, [religiousLevel]);
+
+  return (
+    <Modal visible={visible} onRequestClose={onClose} animationType="slide" presentationStyle="pageSheet">
+      <View style={{ flex: 1, backgroundColor: theme.bg }}>
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            paddingHorizontal: 20,
+            paddingVertical: 16,
+          }}
+        >
+          <Text style={{ flex: 1, color: theme.text, fontSize: 20, fontWeight: '900' }}>
+            Ritual library
+          </Text>
+          <Pressable
+            onPress={onClose}
+            hitSlop={12}
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: 10,
+              backgroundColor: theme.surface2,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <XIcon size={16} color={theme.text} />
+          </Pressable>
+        </View>
+
+        <Text style={{ paddingHorizontal: 20, color: theme.muted, fontSize: 12, lineHeight: 18, marginBottom: 10 }}>
+          {filtered.length} starters. Tap to add — time and reminder get auto-set when there's a suggestion.
+        </Text>
+
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ paddingHorizontal: 20, paddingVertical: 8 }}
+        >
+          <Pressable
+            onPress={() => setCategory(null)}
+            style={{
+              paddingHorizontal: 12,
+              paddingVertical: 6,
+              borderRadius: 999,
+              backgroundColor: category === null ? theme.accent : theme.surface,
+              borderWidth: 1,
+              borderColor: category === null ? theme.accent : theme.hairline,
+              marginRight: 6,
+            }}
+          >
+            <Text
+              style={{
+                color: category === null ? theme.onAccent : theme.text,
+                fontWeight: '900',
+                fontSize: 12,
+              }}
+            >
+              All
+            </Text>
+          </Pressable>
+          {availableCategories.map((c) => (
+            <Pressable
+              key={c}
+              onPress={() => setCategory(c)}
+              style={{
+                paddingHorizontal: 12,
+                paddingVertical: 6,
+                borderRadius: 999,
+                backgroundColor: category === c ? theme.accent : theme.surface,
+                borderWidth: 1,
+                borderColor: category === c ? theme.accent : theme.hairline,
+                marginRight: 6,
+              }}
+            >
+              <Text
+                style={{
+                  color: category === c ? theme.onAccent : theme.text,
+                  fontWeight: '900',
+                  fontSize: 12,
+                }}
+              >
+                {RITUAL_CATEGORY_LABELS[c]}
+              </Text>
+            </Pressable>
+          ))}
+        </ScrollView>
+
+        <ScrollView contentContainerStyle={{ padding: 20, paddingTop: 8, paddingBottom: 40 }}>
+          {filtered.map((entry, i) => {
+            const already = existing.some((r) => r.text === entry.text);
+            return (
+              <View
+                key={i}
+                style={{
+                  backgroundColor: theme.surface,
+                  borderWidth: 1,
+                  borderColor: theme.hairline,
+                  borderRadius: 16,
+                  padding: 14,
+                  marginBottom: 10,
+                }}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginBottom: 8 }}>
+                  <Text style={{ flex: 1, color: theme.text, fontSize: 14, lineHeight: 20, fontWeight: '700' }}>
+                    {entry.text}
+                  </Text>
+                  {entry.suggestedTime && (
+                    <View
+                      style={{
+                        paddingHorizontal: 8,
+                        paddingVertical: 3,
+                        borderRadius: 999,
+                        backgroundColor: 'rgba(232,160,32,0.15)',
+                        borderWidth: 1,
+                        borderColor: 'rgba(232,160,32,0.4)',
+                      }}
+                    >
+                      <Text
+                        style={{
+                          color: theme.accent,
+                          fontWeight: '800',
+                          fontSize: 10,
+                          fontVariant: ['tabular-nums'],
+                        }}
+                      >
+                        {entry.suggestedTime}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+                {entry.why && (
+                  <Text style={{ color: theme.muted, fontSize: 12, lineHeight: 18, marginBottom: 10 }}>
+                    {entry.why}
+                  </Text>
+                )}
+                <View style={{ flexDirection: 'row', gap: 8 }}>
+                  <View
+                    style={{
+                      paddingHorizontal: 8,
+                      paddingVertical: 3,
+                      borderRadius: 999,
+                      backgroundColor: theme.surface2,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        color: theme.muted,
+                        fontWeight: '700',
+                        fontSize: 9,
+                        letterSpacing: 1,
+                      }}
+                    >
+                      {RITUAL_CATEGORY_LABELS[entry.category].toUpperCase()}
+                    </Text>
+                  </View>
+                  <Pressable
+                    onPress={() => onPick(entry)}
+                    disabled={already}
+                    style={{
+                      flex: 1,
+                      paddingVertical: 8,
+                      borderRadius: 10,
+                      backgroundColor: already ? theme.surface2 : theme.accent,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexDirection: 'row',
+                      gap: 5,
+                    }}
+                  >
+                    {already ? (
+                      <>
+                        <Check size={12} color={theme.muted} />
+                        <Text
+                          style={{
+                            color: theme.muted,
+                            fontWeight: '900',
+                            fontSize: 11,
+                            letterSpacing: 1,
+                          }}
+                        >
+                          ALREADY ADDED
+                        </Text>
+                      </>
+                    ) : (
+                      <>
+                        <Plus size={12} color={theme.onAccent} />
+                        <Text
+                          style={{
+                            color: theme.onAccent,
+                            fontWeight: '900',
+                            fontSize: 11,
+                            letterSpacing: 1,
+                          }}
+                        >
+                          ADD
+                        </Text>
+                      </>
+                    )}
+                  </Pressable>
+                </View>
+              </View>
+            );
+          })}
+        </ScrollView>
+      </View>
+    </Modal>
   );
 };

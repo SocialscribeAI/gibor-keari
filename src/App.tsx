@@ -7,6 +7,7 @@ import { PunishmentModeWrapper } from './components/PunishmentModeWrapper';
 import { SplashScreen } from './components/SplashScreen';
 import { CheckInModal } from './components/CheckInModal';
 import { DangerModeBanner, DangerModeReentryLock } from './components/DangerMode';
+import { Walkthrough } from './components/Walkthrough';
 import { UpdateBanner } from './components/UpdateBanner';
 import { AlphaBanner } from './components/AlphaBanner';
 import { LockScreen } from './screens/LockScreen';
@@ -192,6 +193,7 @@ export default function App() {
             <Navigator />
             <CheckInModal />
             <DangerModeReentryLock />
+            <Walkthrough />
           </PunishmentModeWrapper>
         )}
       </AnimatePresence>

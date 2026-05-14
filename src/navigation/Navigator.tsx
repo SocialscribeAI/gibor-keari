@@ -35,6 +35,7 @@ import { ForumsListScreen } from '../screens/ForumsListScreen';
 import { ForumThreadScreen } from '../screens/ForumThreadScreen';
 import { ForumComposeScreen } from '../screens/ForumComposeScreen';
 import { DangerModePanel } from '../components/DangerMode';
+import { DisciplineSetupScreen } from '../screens/DisciplineSetupScreen';
 
 import { BottomTab, TabType } from '../components/BottomTab';
 
@@ -45,7 +46,7 @@ type Overlay =
   | 'coach-style' | 'clinical-profile' | 'coach-kb' | 'pin-settings'
   | 'community' | 'community-setup' | 'community-settings' | 'auth'
   | 'partner' | 'leaderboard' | 'forums' | 'forum-thread' | 'forum-compose'
-  | 'danger';
+  | 'danger' | 'discipline';
 
 export const Navigator: React.FC = () => {
   const { hasCompletedOnboarding } = useStore();
@@ -81,6 +82,7 @@ export const Navigator: React.FC = () => {
       case 'coach-kb': return <CoachKnowledgeBaseScreen onBack={close} />;
       case 'pin-settings': return <PinSettingsScreen onBack={close} />;
       case 'danger': return <DangerModePanel onBack={close} />;
+      case 'discipline': return <DisciplineSetupScreen onBack={close} />;
 
       case 'community':
         return <CommunityHubScreen
@@ -163,6 +165,7 @@ export const Navigator: React.FC = () => {
             onNavigateToClinicalProfile={() => open('clinical-profile')}
             onNavigateToCoachKnowledgeBase={() => open('coach-kb')}
             onNavigateToPinSettings={() => open('pin-settings')}
+            onNavigateToDiscipline={() => open('discipline')}
           />
         );
       default: return <Home onOpenDanger={() => open('danger')} />;

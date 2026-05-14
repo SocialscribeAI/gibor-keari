@@ -1,11 +1,17 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, Pressable, TextInput, Alert, ActivityIndicator, ScrollView } from 'react-native';
-import { ArrowLeft, Plus, Star, Trash2, Sparkles, Check, X, ThumbsUp, ThumbsDown } from 'lucide-react-native';
+import { View, Text, Pressable, TextInput, Alert, ActivityIndicator, ScrollView, Modal } from 'react-native';
+import { ArrowLeft, Plus, Star, Trash2, Sparkles, Check, X, ThumbsUp, ThumbsDown, Library } from 'lucide-react-native';
 import { Screen } from '../components/Screen';
 import { useStore } from '../store/useStore';
 import { useTheme } from '../constants/theme';
 import { generateMantras, type MantraSuggestion } from '../services/aiActions';
 import { isAiConfigured } from '../services/aiService';
+import {
+  filterMantraLibrary,
+  CATEGORY_LABELS,
+  type MantraCategory,
+  type MantraEntry,
+} from '../constants/mantraLibrary';
 
 interface Props {
   onBack: () => void;
@@ -32,6 +38,7 @@ export const MantraBuilder: React.FC<Props> = ({ onBack }) => {
   const [loading, setLoading] = useState(false);
   const [suggestions, setSuggestions] = useState<MantraSuggestion[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [libraryOpen, setLibraryOpen] = useState(false);
 
   const aiCfg = useMemo(
     () => ({
@@ -93,6 +100,21 @@ export const MantraBuilder: React.FC<Props> = ({ onBack }) => {
         </Pressable>
         <Text className="text-2xl font-black text-white">Mantras</Text>
       </View>
+
+      <Pressable
+        onPress={() => setLibraryOpen(true)}
+        className="flex-row items-center justify-center mb-4 py-4 rounded-3xl"
+        style={{
+          backgroundColor: 'rgba(232,160,32,0.10)',
+          borderWidth: 1,
+          borderColor: 'rgba(232,160,32,0.40)',
+        }}
+      >
+        <Library size={16} color={theme.accent} />
+        <Text className="font-black uppercase ml-2 text-xs" style={{ color: theme.accent, letterSpacing: 2 }}>
+          Browse the library
+        </Text>
+      </Pressable>
 
       <View className="bg-guard-surface border border-guard-primary/30 rounded-3xl p-5 mb-4">
         <Text className="text-guard-accent text-xs uppercase tracking-widest mb-3">Add New</Text>
@@ -290,6 +312,245 @@ export const MantraBuilder: React.FC<Props> = ({ onBack }) => {
         );
       })}
       </ScrollView>
+
+      <MantraLibraryModal
+        visible={libraryOpen}
+        onClose={() => setLibraryOpen(false)}
+        existingMantras={mantras}
+        onPick={(entry) => {
+          const formatted = entry.source ? `${entry.text}\n— ${entry.source}` : entry.text;
+          addMantra(formatted);
+        }}
+        religiousLevel={personalityProfile.religiousLevel}
+        intensity={personalityProfile.intensity}
+      />
     </Screen>
+  );
+};
+
+// =============================================================================
+// MantraLibraryModal — browses the curated library, filtered by profile.
+// =============================================================================
+
+interface LibraryModalProps {
+  visible: boolean;
+  onClose: () => void;
+  existingMantras: string[];
+  onPick: (entry: MantraEntry) => void;
+  religiousLevel: any;
+  intensity: any;
+}
+
+const MantraLibraryModal: React.FC<LibraryModalProps> = ({
+  visible,
+  onClose,
+  existingMantras,
+  onPick,
+  religiousLevel,
+  intensity,
+}) => {
+  const theme = useTheme();
+  const [category, setCategory] = useState<MantraCategory | null>(null);
+
+  const filtered = useMemo(() => {
+    const set = category ? new Set<MantraCategory>([category]) : undefined;
+    return filterMantraLibrary(religiousLevel, intensity, set);
+  }, [religiousLevel, intensity, category]);
+
+  // Determine which categories actually have results so we don't show empty
+  // filter chips.
+  const availableCategories = useMemo(() => {
+    const baseline = filterMantraLibrary(religiousLevel, intensity);
+    const set = new Set<MantraCategory>();
+    for (const m of baseline) set.add(m.category);
+    return Array.from(set);
+  }, [religiousLevel, intensity]);
+
+  return (
+    <Modal visible={visible} onRequestClose={onClose} animationType="slide" presentationStyle="pageSheet">
+      <View style={{ flex: 1, backgroundColor: theme.bg }}>
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            paddingHorizontal: 20,
+            paddingVertical: 16,
+          }}
+        >
+          <Text style={{ flex: 1, color: theme.text, fontSize: 20, fontWeight: '900' }}>
+            Mantra library
+          </Text>
+          <Pressable
+            onPress={onClose}
+            hitSlop={12}
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: 10,
+              backgroundColor: theme.surface2,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <X size={16} color={theme.text} />
+          </Pressable>
+        </View>
+
+        <Text style={{ paddingHorizontal: 20, color: theme.muted, fontSize: 12, lineHeight: 18, marginBottom: 10 }}>
+          {filtered.length} entries matching your profile. Tap one to add it to your collection.
+        </Text>
+
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ paddingHorizontal: 20, paddingVertical: 8 }}
+        >
+          <Pressable
+            onPress={() => setCategory(null)}
+            style={{
+              paddingHorizontal: 12,
+              paddingVertical: 6,
+              borderRadius: 999,
+              backgroundColor: category === null ? theme.accent : theme.surface,
+              borderWidth: 1,
+              borderColor: category === null ? theme.accent : theme.hairline,
+              marginRight: 6,
+            }}
+          >
+            <Text
+              style={{
+                color: category === null ? theme.onAccent : theme.text,
+                fontWeight: '900',
+                fontSize: 12,
+              }}
+            >
+              All
+            </Text>
+          </Pressable>
+          {availableCategories.map((c) => (
+            <Pressable
+              key={c}
+              onPress={() => setCategory(c)}
+              style={{
+                paddingHorizontal: 12,
+                paddingVertical: 6,
+                borderRadius: 999,
+                backgroundColor: category === c ? theme.accent : theme.surface,
+                borderWidth: 1,
+                borderColor: category === c ? theme.accent : theme.hairline,
+                marginRight: 6,
+              }}
+            >
+              <Text
+                style={{
+                  color: category === c ? theme.onAccent : theme.text,
+                  fontWeight: '900',
+                  fontSize: 12,
+                }}
+              >
+                {CATEGORY_LABELS[c]}
+              </Text>
+            </Pressable>
+          ))}
+        </ScrollView>
+
+        <ScrollView contentContainerStyle={{ padding: 20, paddingTop: 8, paddingBottom: 40 }}>
+          {filtered.map((entry, i) => {
+            const formatted = entry.source ? `${entry.text}\n— ${entry.source}` : entry.text;
+            const already = existingMantras.includes(formatted);
+            return (
+              <View
+                key={i}
+                style={{
+                  backgroundColor: theme.surface,
+                  borderWidth: 1,
+                  borderColor: theme.hairline,
+                  borderRadius: 16,
+                  padding: 14,
+                  marginBottom: 10,
+                }}
+              >
+                <Text style={{ color: theme.text, fontSize: 14, lineHeight: 21, marginBottom: 6 }}>
+                  {entry.text}
+                </Text>
+                <Text style={{ color: theme.muted, fontSize: 11, fontStyle: 'italic', marginBottom: 10 }}>
+                  — {entry.source}
+                </Text>
+                <View style={{ flexDirection: 'row', gap: 8 }}>
+                  <View
+                    style={{
+                      paddingHorizontal: 8,
+                      paddingVertical: 3,
+                      borderRadius: 999,
+                      backgroundColor: theme.surface2,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        color: theme.muted,
+                        fontWeight: '700',
+                        fontSize: 9,
+                        letterSpacing: 1,
+                      }}
+                    >
+                      {CATEGORY_LABELS[entry.category].toUpperCase()}
+                    </Text>
+                  </View>
+                  <Pressable
+                    onPress={() => onPick(entry)}
+                    disabled={already}
+                    style={{
+                      flex: 1,
+                      paddingVertical: 8,
+                      borderRadius: 10,
+                      backgroundColor: already ? theme.surface2 : theme.accent,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexDirection: 'row',
+                      gap: 5,
+                    }}
+                  >
+                    {already ? (
+                      <>
+                        <Check size={12} color={theme.muted} />
+                        <Text
+                          style={{
+                            color: theme.muted,
+                            fontWeight: '900',
+                            fontSize: 11,
+                            letterSpacing: 1,
+                          }}
+                        >
+                          ALREADY ADDED
+                        </Text>
+                      </>
+                    ) : (
+                      <>
+                        <Plus size={12} color={theme.onAccent} />
+                        <Text
+                          style={{
+                            color: theme.onAccent,
+                            fontWeight: '900',
+                            fontSize: 11,
+                            letterSpacing: 1,
+                          }}
+                        >
+                          ADD
+                        </Text>
+                      </>
+                    )}
+                  </Pressable>
+                </View>
+              </View>
+            );
+          })}
+          {filtered.length === 0 && (
+            <Text style={{ color: theme.muted, textAlign: 'center', padding: 24 }}>
+              No entries match those filters. Try removing the category filter.
+            </Text>
+          )}
+        </ScrollView>
+      </View>
+    </Modal>
   );
 };

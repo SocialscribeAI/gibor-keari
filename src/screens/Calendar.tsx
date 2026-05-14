@@ -24,7 +24,7 @@ const WEEKDAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 type Layer = 'status' | 'events' | 'notes' | 'heatmap';
 
 export const Calendar: React.FC = () => {
-  const { calendarLog, calendarNotes, closeCallEvents, fallEvents, setCalendarEntry, setCalendarNote } =
+  const { calendarLog, calendarNotes, closeCallEvents, fallEvents, checkInEvents, setCalendarEntry, setCalendarNote } =
     useStore();
   const theme = useTheme();
   const [cursor, setCursor] = useState(new Date());
@@ -46,7 +46,10 @@ export const Calendar: React.FC = () => {
     [calendarLog, cursor]
   );
 
-  const insight = useMemo(() => getInsightMessage(calendarLog), [calendarLog]);
+  const insight = useMemo(
+    () => getInsightMessage(calendarLog, checkInEvents),
+    [calendarLog, checkInEvents],
+  );
 
   const closeCallByDay = useMemo(() => {
     const map: Record<string, number> = {};

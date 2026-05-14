@@ -52,6 +52,7 @@ interface Props {
   onNavigateToClinicalProfile: () => void;
   onNavigateToCoachKnowledgeBase: () => void;
   onNavigateToPinSettings: () => void;
+  onNavigateToDiscipline: () => void;
 }
 
 const BADGES: { day: number; label: string }[] = [
@@ -81,6 +82,7 @@ export const Profile: React.FC<Props> = ({
   onNavigateToClinicalProfile,
   onNavigateToCoachKnowledgeBase,
   onNavigateToPinSettings,
+  onNavigateToDiscipline,
 }) => {
   const {
     displayName,
@@ -315,6 +317,7 @@ export const Profile: React.FC<Props> = ({
         About you
       </Text>
       <Row icon={Flame} label="Your Why (identity · costs · ladder)" onPress={onNavigateToYourWhy} />
+      <Row icon={Shield} label="Discipline (self-imposed rule for after a fall)" onPress={onNavigateToDiscipline} />
       <Row icon={Sliders} label="Personalization (12 axes)" onPress={onNavigateToPersonalization} />
       <Row icon={ShieldAlert} label="Watchlist (risk triggers)" onPress={onNavigateToWatchlist} />
       <Row icon={Brain} label="Pattern insights" onPress={onNavigateToInsights} />

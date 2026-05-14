@@ -182,6 +182,24 @@ export interface PersonalityProfile {
 // =============================================================================
 
 /**
+ * Self-imposed discipline rule. Framed as agency, never shame: the user
+ * pre-commits to a consequence ("if I fall, within X hours I will do Y"), so
+ * a fall is followed by a clear act of self-restoration rather than a void.
+ * Surfaced in Post-Fall Protocol step 7 when set.
+ */
+export type DisciplineType = 'physical' | 'reflective' | 'restrictive' | 'spiritual';
+
+export interface DisciplineRule {
+  type: DisciplineType;
+  /** The user's own wording of the rule. */
+  body: string;
+  /** How many hours they give themselves to complete it after a fall. */
+  durationHours: number;
+  /** ISO timestamp the rule was created. */
+  createdAt: string;
+}
+
+/**
  * A morning / daily ritual. The optional `scheduledTime` is an HH:mm 24h
  * string (e.g. "07:00"). When set, the notification service schedules a daily
  * reminder; `notificationId` is the expo-notifications identifier so we can
@@ -793,6 +811,17 @@ interface GuardState {
   // `Date.now() - activeSince < 60_000`.
   dangerModeActiveSince: number | null;
 
+  // Discipline rule — user pre-commits to a consequence-rule for themselves
+  // ("if I fall, within X hours I will do Y"). Framed as agency, never shame.
+  // Surfaced in Post-Fall Protocol step 7. `null` until user sets one.
+  disciplineRule: DisciplineRule | null;
+  /** Completion log keyed by the fall event id that triggered the rule. */
+  disciplineCompletions: { fallId: string; completedAt: string }[];
+
+  // First-run walkthrough — shown once after onboarding completes. Set to
+  // true on completion OR skip; never re-prompted.
+  walkthroughCompleted: boolean;
+
   // Coach memory (persistent across sessions)
   coachMessages: CoachMessage[];
   coachSummary: string | null; // rolling AI-generated summary of older turns
@@ -984,6 +1013,12 @@ interface GuardState {
   // Danger Mode lock (new in v13)
   activateDangerMode: () => void; // stamp Date.now() — starts 60s lock
   clearDangerMode: () => void; // override / expiry — clears the timestamp
+
+  // Discipline (new in v14)
+  setDisciplineRule: (rule: DisciplineRule | null) => void;
+  markDisciplineCompleted: (fallId: string) => void;
+  /** Walkthrough completion — set once, never re-prompted. */
+  completeWalkthrough: () => void;
 }
 
 // =============================================================================
@@ -1061,6 +1096,11 @@ export const useStore = create<GuardState>()(
       onboardingVersion: 0,
 
       dangerModeActiveSince: null,
+
+      disciplineRule: null,
+      disciplineCompletions: [],
+
+      walkthroughCompleted: false,
 
       coachMessages: [],
       coachSummary: null,
@@ -1677,6 +1717,21 @@ export const useStore = create<GuardState>()(
 
       clearDangerMode: () => set({ dangerModeActiveSince: null }),
 
+      setDisciplineRule: (rule) => set({ disciplineRule: rule }),
+
+      completeWalkthrough: () => set({ walkthroughCompleted: true }),
+
+      markDisciplineCompleted: (fallId) => {
+        const { disciplineCompletions } = get();
+        if (disciplineCompletions.some((c) => c.fallId === fallId)) return;
+        set({
+          disciplineCompletions: [
+            ...disciplineCompletions,
+            { fallId, completedAt: new Date().toISOString() },
+          ],
+        });
+      },
+
       rotateMantraIfNeeded: () => {
         const { mantras, mantraRotationSeed, lastMantraRotationDayIndex, coachStylePrefs } = get();
         if (!mantras.length) return;
@@ -1965,7 +2020,7 @@ export const useStore = create<GuardState>()(
     {
       name: 'guard-user-profile',
       storage: createJSONStorage(() => AsyncStorage),
-      version: 13,
+      version: 14,
       // Migrate from v1 (4-axis profile) to v2 (12-axis profile + new fields).
       migrate: (persistedState: unknown, version: number) => {
         if (!persistedState || typeof persistedState !== 'object') return persistedState;
@@ -2070,6 +2125,18 @@ export const useStore = create<GuardState>()(
           // that translate into prompt directives. Default neutral.
           s.styleSignals = s.styleSignals ?? createEmptyStyleSignals();
           s.coachMessageFeedback = s.coachMessageFeedback ?? {};
+        }
+        if (version < 14) {
+          // Danger Mode persistent lock + discipline rule (opt-in). Both
+          // default to "off" so upgrading users see no change until they
+          // engage with the features.
+          s.dangerModeActiveSince = s.dangerModeActiveSince ?? null;
+          s.disciplineRule = s.disciplineRule ?? null;
+          s.disciplineCompletions = s.disciplineCompletions ?? [];
+          // Walkthrough — existing users have already used the app, so mark
+          // it complete; only brand-new users see the tour.
+          s.walkthroughCompleted =
+            s.walkthroughCompleted ?? Boolean(s.hasCompletedOnboarding);
         }
         return s;
       },
