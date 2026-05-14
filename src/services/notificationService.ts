@@ -74,9 +74,59 @@ export const notificationService = {
   },
 
   /**
+   * Schedule a daily repeating ritual reminder. Returns the notification id so
+   * the caller can cancel it later when the time changes or the ritual is
+   * deleted. Returns null if permissions aren't granted or scheduling fails.
+   */
+  async scheduleRitualReminder(text: string, time: string): Promise<string | null> {
+    const [hour, minute] = time.split(':').map(Number);
+    if (Number.isNaN(hour) || Number.isNaN(minute)) return null;
+
+    const { status } = await Notifications.getPermissionsAsync();
+    if (status !== 'granted') {
+      const granted = await this.requestPermissions();
+      if (!granted) return null;
+    }
+
+    try {
+      const id = await Notifications.scheduleNotificationAsync({
+        content: {
+          title: 'Ritual time',
+          body: text,
+          data: { kind: 'ritual' },
+        },
+        trigger: {
+          hour,
+          minute,
+          repeats: true,
+          type: Notifications.SchedulableTriggerInputTypes.DAILY,
+        } as any,
+      });
+      return id;
+    } catch (e) {
+      console.warn('[ritual notif] failed to schedule:', e);
+      return null;
+    }
+  },
+
+  /** Cancel a previously scheduled ritual reminder. Safe to call with stale ids. */
+  async cancelRitualReminder(notificationId: string): Promise<void> {
+    try {
+      await Notifications.cancelScheduledNotificationAsync(notificationId);
+    } catch {
+      /* already gone — fine */
+    }
+  },
+
+  /**
    * Single source of truth for what should be scheduled. Cancels all currently
-   * scheduled local notifications and re-schedules from the inputs. Idempotent.
-   * Call on app boot and whenever any input changes (toggle, time, danger hour).
+   * scheduled local notifications and re-schedules everything from the inputs.
+   * Idempotent. Call on app boot and whenever any input changes.
+   *
+   * Note: rituals own their own notification ids in the store; we cancel-all
+   * here for simplicity and the ritual ids are refreshed via `rescheduleRituals`
+   * after this returns. Net effect: a single bootstrap pass refreshes daily
+   * reminder + danger hour + every per-ritual reminder.
    */
   async bootstrap(opts: {
     enabled: boolean;

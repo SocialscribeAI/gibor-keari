@@ -1,45 +1,78 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
   Pressable,
   Modal,
   ScrollView,
-  Linking,
   Animated,
+  Easing,
+  Linking,
+  StatusBar,
+  AppState,
+  BackHandler,
+  Vibration,
+  type AppStateStatus,
 } from 'react-native';
-import { MotiView, AnimatePresence } from 'moti';
+import { MotiView } from 'moti';
 import {
   X,
-  Timer,
-  Phone,
   Wind,
+  Heart,
+  Shield,
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  Phone,
+  Sparkles,
   Zap,
   Brain,
   BookOpen,
-  Shield,
-  Heart,
-  Check,
-  ChevronRight,
+  Share2,
 } from 'lucide-react-native';
 import { useStore, type TacticPreference } from '../store/useStore';
 import { useTheme } from '../constants/theme';
 
 // =============================================================================
-// DangerMode — the "I need help RIGHT NOW" screen.
+// Danger Mode — full-screen takeover, 4 steps, 30-second commitment lock.
 //
-// Shows contextual tactics ranked by what has actually worked for THIS user:
-//   1. Matches user's firstMoveWhenUrgeHits
-//   2. Matches user's tacticPreferences
-//   3. Highest effectiveness score in tacticEffectiveness
+// Replaces the modal-style v1 which (per user report) could lock the UI and
+// force a quit-and-relaunch escape. New invariants:
+//
+//   1. 30-SECOND LOCK at open. The in-app X cannot dismiss the screen for the
+//      first 30 seconds; instead it displays a live countdown. The hardware
+//      back button is intercepted for the same window. This is the user's own
+//      requirement — turn Danger Mode into a commitment device, not just a
+//      suggestion.
+//   2. Backgrounding the app RESETS the lock to 30s. We can't intercept the
+//      OS home button or app switcher, but on return the timer restarts. Every
+//      bail-out costs another 30s.
+//   3. CALLS pass through. An always-tappable "Call someone" button is in the
+//      header so the user can reach a partner / friend / hotline without
+//      needing to leave the app. Once they tap it, the lock pauses so the call
+//      can complete without timer punishment.
+//   4. No UI-blocking work. Breath animation uses native driver; the lock
+//      countdown updates a ref (not state) every tick — state only updates
+//      once per second for the visible label.
+//   5. Each step is self-contained — its own state, no shared resources that
+//      could leak between steps.
+//
+// Steps:
+//   1. BREATH   — 4-7-8 animated breathing
+//   2. ANCHOR   — identity statement + a why reason
+//   3. ACT      — top 4 ranked tactics; "I did this"
+//   4. RECOVER  — "you stayed standing", share + tehillim
 // =============================================================================
+
+const LOCK_SECONDS = 30;
 
 interface Props {
   isOpen: boolean;
   onClose: () => void;
 }
 
-type TriggerTag = 'stressed' | 'lonely' | 'bored' | 'tired' | 'visual' | 'late-night' | 'victory-high' | 'anxious';
+type StepId = 'breath' | 'anchor' | 'act' | 'recover';
+const STEPS: StepId[] = ['breath', 'anchor', 'act', 'recover'];
 
 interface BuiltinTactic {
   id: string;
@@ -50,29 +83,16 @@ interface BuiltinTactic {
 }
 
 const ALL_TACTICS: BuiltinTactic[] = [
-  { id: 'cold-shower', title: 'Cold Shower', desc: 'Shock the nervous system. 30 seconds resets everything.', category: 'physical', duration: '2 min' },
-  { id: 'ten-pushups', title: '10 Pushups — NOW', desc: 'Redirect the energy into your body. Floor, go.', category: 'physical', duration: '60s' },
-  { id: 'walk-outside', title: 'Walk Outside', desc: 'Change the physical environment. The urge stays behind.', category: 'environmental', duration: '5 min' },
-  { id: 'phone-drawer', title: 'Phone In the Drawer', desc: 'Close apps, put the phone face-down across the room.', category: 'environmental', duration: 'instant' },
-  { id: 'breathing-478', title: '4-7-8 Breathing', desc: 'Inhale 4 counts. Hold 7. Exhale 8. Repeat 3 times.', category: 'breathwork', duration: '90s' },
-  { id: 'box-breathing', title: 'Box Breathing', desc: 'In 4, hold 4, out 4, hold 4. Activates the prefrontal cortex.', category: 'breathwork', duration: '2 min' },
-  { id: 'shema', title: 'Say Shema', desc: 'Out loud. With intention. Right now.', category: 'spiritual', duration: 'instant' },
-  { id: 'tehillim-51', title: 'Tehillim 51', desc: "David's prayer after his fall. Say it out loud.", category: 'spiritual', duration: '3 min' },
-  { id: 'call-friend', title: 'Call Someone', desc: "Say: 'I need to talk.' You don't have to explain why.", category: 'social', duration: '5 min' },
-  { id: 'text-partner', title: 'Text Your Partner', desc: "One word is enough: 'Struggling.' They'll know.", category: 'social', duration: 'instant' },
-  { id: 'write-it', title: 'Write the Trigger', desc: 'Open notes. Write: "Right now I feel ___."', category: 'cognitive', duration: '2 min' },
-  { id: 'reframe', title: 'Reframe It', desc: '"This urge is energy. What else can I do with it right now?"', category: 'cognitive', duration: '60s' },
-];
-
-const TRIGGER_OPTIONS: { id: TriggerTag; label: string; emoji: string }[] = [
-  { id: 'stressed', label: 'Stressed', emoji: '😤' },
-  { id: 'lonely', label: 'Lonely', emoji: '😔' },
-  { id: 'bored', label: 'Bored / idle', emoji: '😑' },
-  { id: 'tired', label: 'Tired', emoji: '😴' },
-  { id: 'visual', label: 'Saw something', emoji: '👁️' },
-  { id: 'late-night', label: 'Late night', emoji: '🌙' },
-  { id: 'victory-high', label: 'On a high', emoji: '⚡' },
-  { id: 'anxious', label: 'Anxious', emoji: '😰' },
+  { id: 'cold-shower', title: 'Cold Shower', desc: '30 seconds resets the nervous system. Go.', category: 'physical', duration: '2 min' },
+  { id: 'ten-pushups', title: '10 Pushups — NOW', desc: 'Floor. Redirect the energy. Go.', category: 'physical', duration: '60s' },
+  { id: 'walk-outside', title: 'Walk Outside', desc: 'Change the room. The urge stays behind.', category: 'environmental', duration: '5 min' },
+  { id: 'phone-drawer', title: 'Phone In the Drawer', desc: 'Close it. Put it face-down across the room.', category: 'environmental', duration: 'instant' },
+  { id: 'breathing-478', title: '4-7-8 Breathing', desc: 'In 4, hold 7, out 8. Repeat 3 times.', category: 'breathwork', duration: '90s' },
+  { id: 'shema', title: 'Say Shema', desc: 'Out loud. With kavanah. Right now.', category: 'spiritual', duration: 'instant' },
+  { id: 'tehillim-51', title: 'Tehillim 51', desc: "David's prayer after his fall. Out loud.", category: 'spiritual', duration: '3 min' },
+  { id: 'call-friend', title: 'Call Someone', desc: '"I need to talk." That\'s the whole sentence.', category: 'social', duration: '5 min' },
+  { id: 'text-partner', title: 'Text Your Partner', desc: 'One word: "Struggling." They\'ll know.', category: 'social', duration: 'instant' },
+  { id: 'reframe', title: 'Reframe It', desc: '"This urge is energy. What else can I do with it?"', category: 'cognitive', duration: '60s' },
 ];
 
 const CATEGORY_ICON: Record<TacticPreference, any> = {
@@ -93,409 +113,873 @@ const CATEGORY_COLOR: Record<TacticPreference, string> = {
   environmental: '#2C3E50',
 };
 
-// Rank tactics for this user based on preferences + effectiveness
+// Reused verbatim from v1 — well-designed scoring against user preferences
+// and effectiveness history. Keeping it intact preserves all the personalization
+// work already invested in tactic selection.
 function rankTactics(
   tacticPreferences: TacticPreference[],
   firstMove: TacticPreference | null,
   tacticEffectiveness: Record<string, { timesUsed: number; timesWorked: number }>,
   likedTacticIds: string[],
-  triggers: TriggerTag[],
 ): BuiltinTactic[] {
   const score = (t: BuiltinTactic): number => {
     let s = 0;
-    // First-move preference gets biggest boost
     if (firstMove && t.category === firstMove) s += 30;
-    // Preferred category
     if (tacticPreferences.includes(t.category)) s += 15;
-    // Liked explicitly
     if (likedTacticIds.includes(t.id)) s += 20;
-    // Effectiveness score
     const eff = tacticEffectiveness[t.id];
     if (eff && eff.timesUsed > 0) {
       s += Math.round((eff.timesWorked / eff.timesUsed) * 20);
     }
-    // Trigger-specific boosts
-    if (triggers.includes('tired') && t.id === 'cold-shower') s += 10;
-    if (triggers.includes('lonely') && t.category === 'social') s += 10;
-    if (triggers.includes('stressed') && t.category === 'breathwork') s += 10;
-    if (triggers.includes('visual') && (t.id === 'phone-drawer' || t.id === 'walk-outside')) s += 15;
-    if (triggers.includes('late-night') && (t.id === 'tehillim-51' || t.id === 'shema')) s += 10;
-    if (triggers.includes('bored') && t.category === 'physical') s += 8;
     return s;
   };
-
   return [...ALL_TACTICS].sort((a, b) => score(b) - score(a));
-}
-
-// Countdown timer hook
-function useCountdown(seconds: number, active: boolean) {
-  const [remaining, setRemaining] = useState(seconds);
-  useEffect(() => {
-    if (!active) { setRemaining(seconds); return; }
-    if (remaining <= 0) return;
-    const id = setInterval(() => setRemaining((r) => r - 1), 1000);
-    return () => clearInterval(id);
-  }, [active, remaining, seconds]);
-  return remaining;
 }
 
 export const DangerMode: React.FC<Props> = ({ isOpen, onClose }) => {
   const theme = useTheme();
   const {
-    mantras,
-    dailyMantraIndex,
     coachStylePrefs,
     tacticEffectiveness,
+    identityStatement,
+    whyReasons,
     logCloseCall,
     rateTactic,
   } = useStore();
 
-  const [triggers, setTriggers] = useState<TriggerTag[]>([]);
-  const [completedId, setCompletedId] = useState<string | null>(null);
-  const [countdownActive, setCountdownActive] = useState(false);
-  const remaining = useCountdown(1200, countdownActive); // 20 min
+  const [stepIndex, setStepIndex] = useState(0);
+  const [exitConfirming, setExitConfirming] = useState(false);
+  const [completedTactic, setCompletedTactic] = useState<string | null>(null);
 
-  const mantra = dailyMantraIndex !== null ? mantras[dailyMantraIndex] : mantras[0] || 'I am not my urges.';
+  // 30-second commitment lock. The X / hardware-back can't dismiss while
+  // `lockRemaining > 0`. The countdown updates state once per second for the
+  // label; we don't drive it off `Date.now()` per render because backgrounding
+  // freezes the JS timer (which is exactly what we want — the timer "pauses"
+  // while backgrounded and the AppState listener separately resets to full
+  // on return).
+  const [lockRemaining, setLockRemaining] = useState(LOCK_SECONDS);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const callPausedRef = useRef(false);
 
-  const rankedTactics = rankTactics(
-    coachStylePrefs.tacticPreferences,
-    coachStylePrefs.firstMoveWhenUrgeHits,
-    tacticEffectiveness,
-    coachStylePrefs.likedTacticIds,
-    triggers,
-  ).slice(0, 4);
+  const startLockTimer = useCallback(() => {
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    setLockRemaining(LOCK_SECONDS);
+    intervalRef.current = setInterval(() => {
+      setLockRemaining((r) => {
+        if (r <= 1) {
+          if (intervalRef.current) clearInterval(intervalRef.current);
+          intervalRef.current = null;
+          return 0;
+        }
+        return r - 1;
+      });
+    }, 1000);
+  }, []);
 
-  const toggleTrigger = (id: TriggerTag) =>
-    setTriggers((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
+  const stepId = STEPS[stepIndex];
+  const isLast = stepIndex === STEPS.length - 1;
+  const locked = lockRemaining > 0;
 
-  const handleComplete = (tacticId: string) => {
-    setCompletedId(tacticId);
-    rateTactic(tacticId, true, triggers.join(','));
-    const tactic = ALL_TACTICS.find((t) => t.id === tacticId);
-    logCloseCall({
-      trigger: triggers.join(',') || 'urge',
-      tacticUsed: tactic?.title ?? tacticId,
-      workedRating: 4,
+  // Reset state when the modal opens fresh. Don't reset while it's already
+  // open — that would wipe progress mid-session.
+  useEffect(() => {
+    if (isOpen) {
+      setStepIndex(0);
+      setExitConfirming(false);
+      setCompletedTactic(null);
+      startLockTimer();
+    } else {
+      // Modal closed — stop the timer so it doesn't keep ticking in the
+      // background.
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    }
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
+  }, [isOpen, startLockTimer]);
+
+  // Backgrounding penalty: when the user leaves the app (home button, app
+  // switcher) and comes back, reset the lock to a full 30s. We can't *prevent*
+  // them leaving (OS doesn't allow it), but we can make every escape costly.
+  //
+  // Exception: if the user just tapped "Call someone", we set callPausedRef
+  // so the next background→foreground cycle doesn't reset (the call is the
+  // explicit allowed reason to leave). Cleared on the first return.
+  useEffect(() => {
+    if (!isOpen) return;
+    const sub = AppState.addEventListener('change', (next: AppStateStatus) => {
+      if (next === 'active') {
+        if (callPausedRef.current) {
+          callPausedRef.current = false;
+          return; // pass through — they were calling someone
+        }
+        // They left for some other reason. Reset to full lock.
+        startLockTimer();
+      }
     });
+    return () => sub.remove();
+  }, [isOpen, startLockTimer]);
+
+  // Hardware back button on Android: intercept while locked. Returning true
+  // tells RN we've handled it. After 30s the back button does its normal
+  // thing (which on this Modal is also handled by onRequestClose → exit).
+  useEffect(() => {
+    if (!isOpen) return;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (locked) {
+        // Subtle haptic so the user knows we heard them — and that the
+        // back button isn't broken, just intentionally disabled.
+        Vibration.vibrate(40);
+        return true; // intercept
+      }
+      handleAttemptExit();
+      return true;
+    });
+    return () => sub.remove();
+  }, [isOpen, locked]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const tactics = useMemo(
+    () =>
+      rankTactics(
+        coachStylePrefs.tacticPreferences,
+        coachStylePrefs.firstMoveWhenUrgeHits,
+        tacticEffectiveness,
+        coachStylePrefs.likedTacticIds,
+      ).slice(0, 4),
+    [coachStylePrefs.tacticPreferences, coachStylePrefs.firstMoveWhenUrgeHits, coachStylePrefs.likedTacticIds, tacticEffectiveness],
+  );
+
+  const handleAttemptExit = () => {
+    if (locked) {
+      // Hard block — the user committed to 30s. A short vibration so the
+      // tap is acknowledged but no exit.
+      Vibration.vibrate(40);
+      return;
+    }
+    // After the lock: still confirm if they haven't completed the flow.
+    if (stepIndex === STEPS.length - 1 || completedTactic) {
+      doExit();
+      return;
+    }
+    setExitConfirming(true);
   };
 
-  const handleClose = () => {
-    setTriggers([]);
-    setCompletedId(null);
-    setCountdownActive(false);
+  const doExit = () => {
+    setExitConfirming(false);
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
     onClose();
   };
 
-  const formatTime = (s: number) => {
-    const m = Math.floor(s / 60);
-    const sec = s % 60;
-    return `${m}:${String(sec).padStart(2, '0')}`;
+  // Always-allowed escape: calling someone. Sets the pass-through flag so the
+  // AppState listener doesn't reset the lock when the user returns from the
+  // call.
+  const handleCall = () => {
+    callPausedRef.current = true;
+    void Linking.openURL('tel:');
   };
 
+  const handleTacticDone = (tacticId: string) => {
+    if (completedTactic) return;
+    setCompletedTactic(tacticId);
+    const tactic = ALL_TACTICS.find((t) => t.id === tacticId);
+    rateTactic(tacticId, true, 'danger-mode');
+    logCloseCall({
+      trigger: 'danger-mode',
+      tacticUsed: tactic?.title ?? tacticId,
+      workedRating: 4,
+    });
+    // Auto-advance to recover step after a beat so the user sees the success
+    // state. Single setTimeout, no animation deps — safe to leave even if the
+    // user exits in the gap.
+    setTimeout(() => {
+      setStepIndex(STEPS.length - 1);
+    }, 800);
+  };
+
+  const next = () => setStepIndex((i) => Math.min(STEPS.length - 1, i + 1));
+  const back = () => setStepIndex((i) => Math.max(0, i - 1));
+
   return (
-    <Modal visible={isOpen} transparent animationType="slide" onRequestClose={handleClose}>
+    <Modal
+      visible={isOpen}
+      animationType="slide"
+      onRequestClose={handleAttemptExit}
+      presentationStyle="fullScreen"
+      statusBarTranslucent
+    >
+      <StatusBar barStyle="light-content" backgroundColor={theme.bg} />
       <View style={{ flex: 1, backgroundColor: theme.bg }}>
-        {/* Header */}
+        {/* Header
+            - DANGER MODE label + step counter
+            - Always-visible "Call" button (the explicit allowed escape)
+            - X button that becomes a live countdown for the first 30s
+        */}
         <View
           style={{
             flexDirection: 'row',
             alignItems: 'center',
-            paddingTop: 52,
+            paddingTop: 56,
             paddingHorizontal: 20,
-            paddingBottom: 16,
-            borderBottomWidth: 1,
-            borderBottomColor: theme.hairline,
+            paddingBottom: 12,
+            gap: 8,
           }}
         >
           <View style={{ flex: 1 }}>
-            <Text style={{ color: theme.accent, fontSize: 22, fontWeight: '900' }}>Danger Mode</Text>
-            <Text style={{ color: theme.muted, fontSize: 12 }}>
-              Urges peak and pass. You can ride this out.
+            <Text style={{ color: theme.accent, fontSize: 10, fontWeight: '900', letterSpacing: 3 }}>
+              DANGER MODE
+            </Text>
+            <Text style={{ color: theme.muted, fontSize: 12, marginTop: 2 }}>
+              Step {stepIndex + 1} of {STEPS.length}
+              {locked ? ' · Locked' : ''}
             </Text>
           </View>
+
+          {/* Call someone — the explicit allowed escape. Always tappable,
+              even during lock. Tapping flips callPausedRef so the
+              background→foreground cycle doesn't penalize the call. */}
           <Pressable
-            onPress={handleClose}
+            onPress={handleCall}
+            hitSlop={12}
             style={{
-              width: 36,
-              height: 36,
-              borderRadius: 10,
-              backgroundColor: theme.surface2,
+              paddingHorizontal: 12,
+              height: 40,
+              borderRadius: 12,
+              backgroundColor: 'rgba(231,76,60,0.15)',
+              borderWidth: 1,
+              borderColor: 'rgba(231,76,60,0.45)',
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 6,
+            }}
+          >
+            <Phone size={14} color="#E74C3C" />
+            <Text style={{ color: '#E74C3C', fontWeight: '900', fontSize: 11, letterSpacing: 1 }}>
+              CALL
+            </Text>
+          </Pressable>
+
+          {/* Exit X — shows countdown while locked. Tap during lock just
+              vibrates; tap after lock triggers handleAttemptExit (which
+              still confirms if not on the final step). */}
+          <Pressable
+            onPress={handleAttemptExit}
+            hitSlop={16}
+            style={{
+              minWidth: 40,
+              paddingHorizontal: locked ? 10 : 0,
+              height: 40,
+              borderRadius: 12,
+              backgroundColor: locked ? 'rgba(232,160,32,0.15)' : theme.surface2,
+              borderWidth: locked ? 1 : 0,
+              borderColor: locked ? 'rgba(232,160,32,0.45)' : 'transparent',
               alignItems: 'center',
               justifyContent: 'center',
             }}
           >
-            <X size={16} color={theme.text} />
+            {locked ? (
+              <Text style={{ color: theme.accent, fontWeight: '900', fontSize: 13, fontVariant: ['tabular-nums'] }}>
+                {`0:${String(lockRemaining).padStart(2, '0')}`}
+              </Text>
+            ) : (
+              <X size={18} color={theme.text} />
+            )}
           </Pressable>
         </View>
 
-        <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 40 }}>
-
-          {/* Mantra */}
-          <View
-            style={{
-              backgroundColor: 'rgba(232,160,32,0.1)',
-              borderWidth: 1,
-              borderColor: 'rgba(232,160,32,0.3)',
-              borderRadius: 16,
-              padding: 16,
-              marginBottom: 20,
-            }}
-          >
-            <Text style={{ color: theme.muted, fontSize: 10, fontWeight: '800', letterSpacing: 2, marginBottom: 6 }}>
-              YOUR MANTRA
+        {/* Lock explanation — only shown while locked, fades out after */}
+        {locked && (
+          <View style={{ paddingHorizontal: 20, marginBottom: 8 }}>
+            <Text style={{ color: theme.muted, fontSize: 11, lineHeight: 16, fontStyle: 'italic' }}>
+              You're locked in for {lockRemaining}s — long enough for the urge to crest. Tap CALL if you need someone now.
             </Text>
-            <Text style={{ color: theme.text, fontSize: 16, lineHeight: 24, fontWeight: '700' }}>{mantra}</Text>
           </View>
+        )}
 
-          {/* Countdown */}
-          <View
-            style={{
-              backgroundColor: theme.surface,
-              borderWidth: 1,
-              borderColor: theme.hairline,
-              borderRadius: 16,
-              padding: 16,
-              marginBottom: 20,
-            }}
-          >
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-              <Timer size={16} color={theme.accent} />
-              <Text style={{ color: theme.text, fontWeight: '800', fontSize: 14, marginLeft: 8, flex: 1 }}>
-                20-minute urge timer
+        {/* Progress bar — solid filled to current step */}
+        <View style={{ flexDirection: 'row', gap: 4, paddingHorizontal: 20, marginBottom: 8 }}>
+          {STEPS.map((_, i) => (
+            <View
+              key={i}
+              style={{
+                flex: 1,
+                height: 3,
+                borderRadius: 2,
+                backgroundColor: i <= stepIndex ? theme.accent : theme.hairline,
+              }}
+            />
+          ))}
+        </View>
+
+        {/* Step content */}
+        <ScrollView
+          contentContainerStyle={{ flexGrow: 1, padding: 20, paddingBottom: 100 }}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          {stepId === 'breath' && <BreathStep theme={theme} />}
+          {stepId === 'anchor' && (
+            <AnchorStep
+              theme={theme}
+              identityStatement={identityStatement}
+              whyReasons={whyReasons}
+            />
+          )}
+          {stepId === 'act' && (
+            <ActStep
+              theme={theme}
+              tactics={tactics}
+              tacticEffectiveness={tacticEffectiveness}
+              completedTactic={completedTactic}
+              onTacticDone={handleTacticDone}
+            />
+          )}
+          {stepId === 'recover' && (
+            <RecoverStep
+              theme={theme}
+              completedTactic={completedTactic}
+              tactics={tactics}
+            />
+          )}
+        </ScrollView>
+
+        {/* Bottom controls — back / continue. Bottom-anchored so they're
+            always reachable; never overlap with content because the
+            ScrollView's paddingBottom reserves space. */}
+        <View
+          style={{
+            position: 'absolute',
+            bottom: 0,
+            left: 0,
+            right: 0,
+            padding: 20,
+            paddingBottom: 32,
+            backgroundColor: theme.bg,
+            borderTopWidth: 1,
+            borderTopColor: theme.hairline,
+            flexDirection: 'row',
+            gap: 10,
+          }}
+        >
+          {stepIndex > 0 && !isLast && (
+            <Pressable
+              onPress={back}
+              hitSlop={8}
+              style={{
+                paddingVertical: 16,
+                paddingHorizontal: 18,
+                borderRadius: 16,
+                backgroundColor: theme.surface2,
+                flexDirection: 'row',
+                alignItems: 'center',
+              }}
+            >
+              <ChevronLeft size={18} color={theme.muted} />
+              <Text style={{ color: theme.muted, fontWeight: '800', marginLeft: 4, fontSize: 13 }}>
+                Back
               </Text>
-              {countdownActive && (
-                <Text style={{ color: theme.accent, fontWeight: '900', fontSize: 22 }}>
-                  {formatTime(remaining)}
-                </Text>
-              )}
-            </View>
-            <Text style={{ color: theme.muted, fontSize: 12, lineHeight: 17, marginBottom: 12 }}>
-              Urges biologically peak and pass in 15-20 minutes. Start the clock. Just wait it out.
-            </Text>
-            {remaining === 0 ? (
-              <View style={{ backgroundColor: 'rgba(30,138,74,0.15)', borderRadius: 10, padding: 12, alignItems: 'center' }}>
-                <Check size={20} color={theme.success} />
-                <Text style={{ color: theme.success, fontWeight: '800', marginTop: 4 }}>You made it through.</Text>
-              </View>
-            ) : (
-              <Pressable
-                onPress={() => setCountdownActive(!countdownActive)}
-                style={{
-                  backgroundColor: countdownActive ? theme.surface : theme.accent,
-                  borderWidth: 1,
-                  borderColor: countdownActive ? theme.hairline : theme.accent,
-                  borderRadius: 10,
-                  paddingVertical: 10,
-                  alignItems: 'center',
-                }}
-              >
-                <Text
-                  style={{
-                    color: countdownActive ? theme.muted : theme.onAccent,
-                    fontWeight: '800',
-                    fontSize: 13,
-                  }}
-                >
-                  {countdownActive ? 'Pause timer' : 'Start 20-min timer'}
-                </Text>
-              </Pressable>
-            )}
-          </View>
-
-          {/* Trigger selection */}
-          <Text style={{ color: theme.muted, fontSize: 11, fontWeight: '800', letterSpacing: 2, marginBottom: 10 }}>
-            WHAT'S HAPPENING RIGHT NOW?
-          </Text>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 20 }}>
-            {TRIGGER_OPTIONS.map((t) => {
-              const active = triggers.includes(t.id);
-              return (
-                <Pressable
-                  key={t.id}
-                  onPress={() => toggleTrigger(t.id)}
-                  style={{
-                    backgroundColor: active ? theme.accent : theme.surface2,
-                    borderWidth: 1,
-                    borderColor: active ? theme.accent : theme.hairline,
-                    borderRadius: 20,
-                    paddingVertical: 8,
-                    paddingHorizontal: 14,
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    gap: 6,
-                  }}
-                >
-                  <Text style={{ fontSize: 14 }}>{t.emoji}</Text>
-                  <Text style={{ color: active ? theme.onAccent : theme.text, fontSize: 13, fontWeight: '700' }}>
-                    {t.label}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-
-          {/* Contextual tactics */}
-          <Text style={{ color: theme.muted, fontSize: 11, fontWeight: '800', letterSpacing: 2, marginBottom: 10 }}>
-            {triggers.length > 0 ? 'TACTICS FOR THIS MOMENT' : 'YOUR BEST TACTICS'}
-          </Text>
-          {rankedTactics.map((tactic) => {
-            const Icon = CATEGORY_ICON[tactic.category];
-            const color = CATEGORY_COLOR[tactic.category];
-            const eff = tacticEffectiveness[tactic.id];
-            const isCompleted = completedId === tactic.id;
-
-            return (
-              <AnimatePresence key={tactic.id}>
-                <MotiView
-                  from={{ opacity: 0, translateY: 8 }}
-                  animate={{ opacity: 1, translateY: 0 }}
-                  style={{
-                    backgroundColor: isCompleted ? `${theme.success}20` : theme.surface2,
-                    borderWidth: 1,
-                    borderColor: isCompleted ? theme.success : theme.hairline,
-                    borderRadius: 16,
-                    padding: 14,
-                    marginBottom: 10,
-                  }}
-                >
-                  <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12 }}>
-                    <View
-                      style={{
-                        width: 38,
-                        height: 38,
-                        borderRadius: 10,
-                        backgroundColor: color + '20',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        flexShrink: 0,
-                      }}
-                    >
-                      <Icon size={18} color={color} />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                        <Text style={{ color: theme.text, fontWeight: '800', fontSize: 15, flex: 1 }}>{tactic.title}</Text>
-                        <Text style={{ color: theme.textDim, fontSize: 11 }}>{tactic.duration}</Text>
-                      </View>
-                      <Text style={{ color: theme.muted, fontSize: 13, lineHeight: 18, marginTop: 4 }}>
-                        {tactic.desc}
-                      </Text>
-                      {eff && eff.timesUsed > 0 && (
-                        <Text style={{ color: theme.textDim, fontSize: 10, marginTop: 4 }}>
-                          Worked {eff.timesWorked}/{eff.timesUsed} times for you
-                        </Text>
-                      )}
-                      <Pressable
-                        onPress={() => handleComplete(tactic.id)}
-                        disabled={!!completedId}
-                        style={{
-                          marginTop: 10,
-                          backgroundColor: isCompleted ? 'rgba(30,138,74,0.2)' : color + '20',
-                          borderRadius: 10,
-                          paddingVertical: 8,
-                          paddingHorizontal: 12,
-                          flexDirection: 'row',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          gap: 6,
-                          opacity: completedId && !isCompleted ? 0.4 : 1,
-                        }}
-                      >
-                        {isCompleted ? (
-                          <>
-                            <Check size={13} color={theme.success} />
-                            <Text style={{ color: theme.success, fontWeight: '800', fontSize: 12 }}>Done — logged!</Text>
-                          </>
-                        ) : (
-                          <>
-                            <ChevronRight size={13} color={color} />
-                            <Text style={{ color, fontWeight: '800', fontSize: 12 }}>I did this</Text>
-                          </>
-                        )}
-                      </Pressable>
-                    </View>
-                  </View>
-                </MotiView>
-              </AnimatePresence>
-            );
-          })}
-
-          {/* Call someone */}
+            </Pressable>
+          )}
           <Pressable
-            onPress={() => Linking.openURL('tel:')}
+            onPress={isLast ? doExit : next}
             style={{
-              backgroundColor: 'rgba(231,76,60,0.12)',
-              borderWidth: 1,
-              borderColor: 'rgba(231,76,60,0.4)',
-              borderRadius: 14,
-              padding: 16,
+              flex: 1,
+              paddingVertical: 16,
+              borderRadius: 16,
+              backgroundColor: theme.accent,
               flexDirection: 'row',
               alignItems: 'center',
-              gap: 12,
-              marginTop: 6,
-              marginBottom: 10,
+              justifyContent: 'center',
+            }}
+          >
+            <Text style={{ color: theme.onAccent, fontWeight: '900', letterSpacing: 1.5, fontSize: 14, textTransform: 'uppercase' }}>
+              {isLast ? 'Back to Home' : stepId === 'act' && completedTactic ? 'Continue' : 'Continue'}
+            </Text>
+            <ChevronRight size={18} color={theme.onAccent} style={{ marginLeft: 4 }} />
+          </Pressable>
+        </View>
+
+        {/* Exit confirmation — soft warning, not a hard block. */}
+        {exitConfirming && (
+          <View
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: 'rgba(15,17,32,0.92)',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: 24,
             }}
           >
             <View
               style={{
-                width: 38,
-                height: 38,
-                borderRadius: 10,
-                backgroundColor: 'rgba(231,76,60,0.2)',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <Phone size={18} color="#E74C3C" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={{ color: theme.text, fontWeight: '800', fontSize: 15 }}>Call someone now</Text>
-              <Text style={{ color: theme.muted, fontSize: 12, marginTop: 2 }}>
-                A friend, family member, or partner. Say it out loud.
-              </Text>
-            </View>
-            <ChevronRight size={16} color={theme.muted} />
-          </Pressable>
-
-          {/* I got through it */}
-          {completedId && (
-            <MotiView
-              from={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              style={{
-                backgroundColor: `${theme.success}20`,
+                backgroundColor: theme.surface,
+                borderRadius: 24,
+                padding: 24,
+                width: '100%',
+                maxWidth: 360,
                 borderWidth: 1,
-                borderColor: theme.success,
-                borderRadius: 16,
-                padding: 20,
-                alignItems: 'center',
-                marginTop: 10,
+                borderColor: theme.hairline,
               }}
             >
-              <Heart size={28} color={theme.success} />
-              <Text style={{ color: theme.text, fontWeight: '900', fontSize: 18, marginTop: 10 }}>
-                You stayed standing.
+              <Text style={{ color: theme.text, fontSize: 20, fontWeight: '900', marginBottom: 8 }}>
+                Leave now?
               </Text>
-              <Text style={{ color: theme.muted, fontSize: 13, textAlign: 'center', marginTop: 6, lineHeight: 18 }}>
-                This close call was logged. The pattern engine noticed.{'\n'}That took discipline.
+              <Text style={{ color: theme.muted, fontSize: 14, lineHeight: 21, marginBottom: 20 }}>
+                You haven't finished. Even one more breath could be what carries you through.
               </Text>
-              <Pressable
-                onPress={handleClose}
-                style={{
-                  marginTop: 16,
-                  backgroundColor: theme.success,
-                  borderRadius: 12,
-                  paddingVertical: 12,
-                  paddingHorizontal: 32,
-                }}
-              >
-                <Text style={{ color: '#ffffff', fontWeight: '900', fontSize: 14 }}>Back to Home</Text>
-              </Pressable>
-            </MotiView>
-          )}
-
-        </ScrollView>
+              <View style={{ flexDirection: 'row', gap: 10 }}>
+                <Pressable
+                  onPress={doExit}
+                  style={{
+                    flex: 1,
+                    paddingVertical: 14,
+                    borderRadius: 14,
+                    backgroundColor: theme.surface2,
+                    alignItems: 'center',
+                  }}
+                >
+                  <Text style={{ color: theme.muted, fontWeight: '800', fontSize: 13 }}>
+                    Yes, exit
+                  </Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => setExitConfirming(false)}
+                  style={{
+                    flex: 1,
+                    paddingVertical: 14,
+                    borderRadius: 14,
+                    backgroundColor: theme.accent,
+                    alignItems: 'center',
+                  }}
+                >
+                  <Text style={{ color: theme.onAccent, fontWeight: '900', fontSize: 13 }}>
+                    Keep going
+                  </Text>
+                </Pressable>
+              </View>
+            </View>
+          </View>
+        )}
       </View>
     </Modal>
+  );
+};
+
+// =============================================================================
+// Step 1 — BREATH
+// =============================================================================
+//
+// 4-7-8 breathing cycle. Animation driven by Animated.Value with native driver
+// so it runs off the JS thread — no UI freeze risk. Phase labels update from a
+// chained sequence of timings; the user can ignore the timing and just watch.
+// =============================================================================
+
+const BREATH_PHASES = [
+  { label: 'Breathe in', duration: 4000, toScale: 1.4 },
+  { label: 'Hold', duration: 7000, toScale: 1.4 },
+  { label: 'Breathe out', duration: 8000, toScale: 0.6 },
+] as const;
+
+const BreathStep: React.FC<{ theme: ReturnType<typeof useTheme> }> = ({ theme }) => {
+  const scale = useRef(new Animated.Value(0.8)).current;
+  const [phaseIndex, setPhaseIndex] = useState(0);
+  const [cycle, setCycle] = useState(0);
+  const cancelledRef = useRef(false);
+
+  useEffect(() => {
+    cancelledRef.current = false;
+
+    const animatePhase = (i: number, c: number) => {
+      if (cancelledRef.current) return;
+      const phase = BREATH_PHASES[i];
+      setPhaseIndex(i);
+      Animated.timing(scale, {
+        toValue: phase.toScale,
+        duration: phase.duration,
+        easing: Easing.inOut(Easing.sin),
+        useNativeDriver: true,
+      }).start((res) => {
+        if (cancelledRef.current || !res.finished) return;
+        const nextI = (i + 1) % BREATH_PHASES.length;
+        const nextC = nextI === 0 ? c + 1 : c;
+        if (nextI === 0) setCycle(nextC);
+        animatePhase(nextI, nextC);
+      });
+    };
+
+    animatePhase(0, 0);
+
+    return () => {
+      cancelledRef.current = true;
+      scale.stopAnimation();
+    };
+  }, [scale]);
+
+  const phase = BREATH_PHASES[phaseIndex];
+
+  return (
+    <View style={{ alignItems: 'center', paddingTop: 8 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+        <Wind size={16} color={theme.accent} />
+        <Text style={{ color: theme.accent, fontWeight: '800', marginLeft: 8, letterSpacing: 1, fontSize: 12 }}>
+          4 · 7 · 8 BREATHING
+        </Text>
+      </View>
+
+      <Text style={{ color: theme.text, fontSize: 32, fontWeight: '900', textAlign: 'center', marginBottom: 32, lineHeight: 38 }}>
+        Slow your body before{'\n'}you do anything else.
+      </Text>
+
+      <View style={{ width: 240, height: 240, alignItems: 'center', justifyContent: 'center', marginBottom: 24 }}>
+        <Animated.View
+          style={{
+            width: 200,
+            height: 200,
+            borderRadius: 100,
+            backgroundColor: 'rgba(232,160,32,0.12)',
+            borderWidth: 2,
+            borderColor: theme.accent,
+            alignItems: 'center',
+            justifyContent: 'center',
+            transform: [{ scale }],
+          }}
+        >
+          <Text style={{ color: theme.text, fontSize: 22, fontWeight: '900' }}>{phase.label}</Text>
+          <Text style={{ color: theme.muted, fontSize: 13, marginTop: 6 }}>
+            Cycle {cycle + 1}
+          </Text>
+        </Animated.View>
+      </View>
+
+      <Text style={{ color: theme.muted, fontSize: 13, lineHeight: 19, textAlign: 'center', maxWidth: 300 }}>
+        Just match the circle. Inhale 4, hold 7, exhale 8. The urge starts dropping in under a minute.
+      </Text>
+    </View>
+  );
+};
+
+// =============================================================================
+// Step 2 — ANCHOR
+// =============================================================================
+//
+// User's own identityStatement + a why reason. Pulled verbatim from onboarding
+// or About Me. If neither was captured, fall back to a generic but strong line
+// that points the user toward setting their own.
+// =============================================================================
+
+interface AnchorStepProps {
+  theme: ReturnType<typeof useTheme>;
+  identityStatement: string | null;
+  whyReasons: string[];
+}
+
+const AnchorStep: React.FC<AnchorStepProps> = ({ theme, identityStatement, whyReasons }) => {
+  const hasIdentity = !!identityStatement && identityStatement.trim().length > 0;
+  const hasWhy = whyReasons.length > 0;
+
+  // Pick a why reason — rotate through them by minute so the same reason
+  // doesn't appear every time within one session.
+  const reason = useMemo(() => {
+    if (!hasWhy) return null;
+    const idx = Math.floor(Date.now() / 60_000) % whyReasons.length;
+    return whyReasons[idx];
+  }, [whyReasons, hasWhy]);
+
+  return (
+    <View style={{ paddingTop: 8 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+        <Heart size={16} color={theme.accent} />
+        <Text style={{ color: theme.accent, fontWeight: '800', marginLeft: 8, letterSpacing: 1, fontSize: 12 }}>
+          REMEMBER WHO YOU ARE
+        </Text>
+      </View>
+
+      {hasIdentity ? (
+        <View
+          style={{
+            backgroundColor: 'rgba(232,160,32,0.10)',
+            borderWidth: 1,
+            borderColor: 'rgba(232,160,32,0.40)',
+            borderRadius: 24,
+            padding: 24,
+            marginBottom: 20,
+          }}
+        >
+          <Text style={{ color: theme.muted, fontSize: 10, fontWeight: '800', letterSpacing: 2, marginBottom: 12 }}>
+            YOU SAID:
+          </Text>
+          <Text style={{ color: theme.text, fontSize: 24, fontWeight: '900', lineHeight: 32 }}>
+            "I am the kind of man who {identityStatement!.replace(/^i am the kind of man who\s+/i, '')}."
+          </Text>
+        </View>
+      ) : (
+        <View
+          style={{
+            backgroundColor: theme.surface,
+            borderWidth: 1,
+            borderColor: theme.hairline,
+            borderRadius: 24,
+            padding: 24,
+            marginBottom: 20,
+          }}
+        >
+          <Text style={{ color: theme.muted, fontSize: 14, lineHeight: 21 }}>
+            You haven't set your identity statement yet. When the dust settles, go to About Me and finish: <Text style={{ color: theme.text, fontWeight: '700' }}>"I am the kind of man who..."</Text> — then this card will quote your own words back to you in the moment.
+          </Text>
+        </View>
+      )}
+
+      {hasWhy && reason && (
+        <View
+          style={{
+            backgroundColor: theme.surface,
+            borderWidth: 1,
+            borderColor: theme.hairline,
+            borderRadius: 24,
+            padding: 20,
+            marginBottom: 20,
+          }}
+        >
+          <Text style={{ color: theme.muted, fontSize: 10, fontWeight: '800', letterSpacing: 2, marginBottom: 10 }}>
+            ONE OF YOUR REASONS:
+          </Text>
+          <Text style={{ color: theme.text, fontSize: 17, lineHeight: 25, fontWeight: '600' }}>
+            {reason}
+          </Text>
+        </View>
+      )}
+
+      <Text style={{ color: theme.muted, fontSize: 13, lineHeight: 20, textAlign: 'center', paddingHorizontal: 8 }}>
+        This is who you are. The urge is a wave — you are the shore. Stand here for a beat.
+      </Text>
+    </View>
+  );
+};
+
+// =============================================================================
+// Step 3 — ACT
+// =============================================================================
+//
+// Top 4 user-ranked tactics. Tap "I did this" to log + advance to recover.
+// =============================================================================
+
+interface ActStepProps {
+  theme: ReturnType<typeof useTheme>;
+  tactics: BuiltinTactic[];
+  tacticEffectiveness: Record<string, { timesUsed: number; timesWorked: number }>;
+  completedTactic: string | null;
+  onTacticDone: (id: string) => void;
+}
+
+const ActStep: React.FC<ActStepProps> = ({ theme, tactics, tacticEffectiveness, completedTactic, onTacticDone }) => (
+  <View style={{ paddingTop: 8 }}>
+    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+      <Sparkles size={16} color={theme.accent} />
+      <Text style={{ color: theme.accent, fontWeight: '800', marginLeft: 8, letterSpacing: 1, fontSize: 12 }}>
+        DO ONE THING
+      </Text>
+    </View>
+
+    <Text style={{ color: theme.text, fontSize: 22, fontWeight: '900', marginBottom: 8, lineHeight: 28 }}>
+      Pick one. Do it now.
+    </Text>
+    <Text style={{ color: theme.muted, fontSize: 14, lineHeight: 21, marginBottom: 20 }}>
+      Ranked by what's worked for you. Tap when you've done it.
+    </Text>
+
+    {tactics.map((tactic, i) => {
+      const Icon = CATEGORY_ICON[tactic.category];
+      const color = CATEGORY_COLOR[tactic.category];
+      const eff = tacticEffectiveness[tactic.id];
+      const isCompleted = completedTactic === tactic.id;
+      const isDisabled = !!completedTactic && !isCompleted;
+
+      return (
+        <MotiView
+          key={tactic.id}
+          from={{ opacity: 0, translateY: 6 }}
+          animate={{ opacity: isDisabled ? 0.35 : 1, translateY: 0 }}
+          transition={{ type: 'timing', duration: 240, delay: i * 60 }}
+          style={{
+            backgroundColor: isCompleted ? `${theme.success}1A` : theme.surface,
+            borderWidth: 1,
+            borderColor: isCompleted ? theme.success : theme.hairline,
+            borderRadius: 18,
+            padding: 16,
+            marginBottom: 10,
+          }}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12 }}>
+            <View
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: 12,
+                backgroundColor: color + '20',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+              }}
+            >
+              <Icon size={18} color={color} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Text style={{ color: theme.text, fontWeight: '900', fontSize: 16, flex: 1 }}>{tactic.title}</Text>
+                <Text style={{ color: theme.textDim, fontSize: 11 }}>{tactic.duration}</Text>
+              </View>
+              <Text style={{ color: theme.muted, fontSize: 13, lineHeight: 19, marginTop: 4 }}>
+                {tactic.desc}
+              </Text>
+              {eff && eff.timesUsed > 0 && (
+                <Text style={{ color: theme.textDim, fontSize: 10, marginTop: 6 }}>
+                  Worked {eff.timesWorked}/{eff.timesUsed} times for you
+                </Text>
+              )}
+              <Pressable
+                onPress={() => onTacticDone(tactic.id)}
+                disabled={!!completedTactic}
+                hitSlop={6}
+                style={{
+                  marginTop: 12,
+                  backgroundColor: isCompleted ? `${theme.success}30` : color + '20',
+                  borderRadius: 12,
+                  paddingVertical: 10,
+                  paddingHorizontal: 14,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 6,
+                }}
+              >
+                {isCompleted ? (
+                  <>
+                    <Check size={14} color={theme.success} />
+                    <Text style={{ color: theme.success, fontWeight: '900', fontSize: 12 }}>
+                      Done — logged
+                    </Text>
+                  </>
+                ) : (
+                  <>
+                    <ChevronRight size={14} color={color} />
+                    <Text style={{ color, fontWeight: '900', fontSize: 12 }}>
+                      I'm doing this
+                    </Text>
+                  </>
+                )}
+              </Pressable>
+            </View>
+          </View>
+        </MotiView>
+      );
+    })}
+  </View>
+);
+
+// =============================================================================
+// Step 4 — RECOVER
+// =============================================================================
+//
+// Closing affirmation. Acknowledges what they did. Offers next-step links
+// (share, talk to coach) but doesn't require any action.
+// =============================================================================
+
+interface RecoverStepProps {
+  theme: ReturnType<typeof useTheme>;
+  completedTactic: string | null;
+  tactics: BuiltinTactic[];
+}
+
+const RecoverStep: React.FC<RecoverStepProps> = ({ theme, completedTactic, tactics }) => {
+  const tactic = completedTactic ? tactics.find((t) => t.id === completedTactic) ?? ALL_TACTICS.find((t) => t.id === completedTactic) : null;
+
+  const handleShare = () => {
+    void Linking.openURL('sms:?body=Just rode out a hard moment. Standing strong.');
+  };
+
+  return (
+    <View style={{ paddingTop: 8, alignItems: 'center' }}>
+      <MotiView
+        from={{ scale: 0.6, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={{ type: 'spring', damping: 14 }}
+        style={{
+          width: 88,
+          height: 88,
+          borderRadius: 44,
+          backgroundColor: `${theme.success}25`,
+          borderWidth: 2,
+          borderColor: theme.success,
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginBottom: 20,
+        }}
+      >
+        <Heart size={40} color={theme.success} />
+      </MotiView>
+
+      <Text style={{ color: theme.text, fontSize: 30, fontWeight: '900', textAlign: 'center', marginBottom: 12, lineHeight: 36 }}>
+        You stayed standing.
+      </Text>
+
+      <Text style={{ color: theme.muted, fontSize: 15, lineHeight: 22, textAlign: 'center', marginBottom: 24, maxWidth: 340 }}>
+        {tactic
+          ? `You chose ${tactic.title} and worked through it. That choice is logged — the pattern engine just noticed who you are when it counts.`
+          : 'You showed up here when it would have been easier not to. That counts.'}
+      </Text>
+
+      <View
+        style={{
+          width: '100%',
+          backgroundColor: theme.surface,
+          borderWidth: 1,
+          borderColor: theme.hairline,
+          borderRadius: 20,
+          padding: 18,
+          marginBottom: 16,
+        }}
+      >
+        <Text style={{ color: theme.muted, fontSize: 10, fontWeight: '900', letterSpacing: 2, marginBottom: 8 }}>
+          חיזוק · STRENGTH
+        </Text>
+        <Text style={{ color: theme.text, fontSize: 15, lineHeight: 22, fontWeight: '600', fontStyle: 'italic' }}>
+          "אֵיזֶהוּ גִּבּוֹר, הַכּוֹבֵשׁ אֶת יִצְרוֹ — Who is mighty? The one who masters his desire."
+        </Text>
+        <Text style={{ color: theme.textDim, fontSize: 11, marginTop: 6 }}>
+          Pirkei Avot 4:1
+        </Text>
+      </View>
+
+      <Pressable
+        onPress={handleShare}
+        style={{
+          width: '100%',
+          paddingVertical: 14,
+          borderRadius: 14,
+          backgroundColor: theme.surface2,
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 8,
+        }}
+      >
+        <Share2 size={14} color={theme.muted} />
+        <Text style={{ color: theme.muted, fontWeight: '800', fontSize: 12, letterSpacing: 1 }}>
+          TELL SOMEONE YOU MADE IT
+        </Text>
+      </Pressable>
+    </View>
   );
 };

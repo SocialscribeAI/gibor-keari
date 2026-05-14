@@ -110,7 +110,8 @@ function useLockGate() {
 /**
  * Re-schedule local notifications whenever any input that affects them changes.
  * Runs on every mount and whenever the user toggles notifications, edits the
- * reminder time, or shifts the danger hour. Idempotent — cancels first.
+ * reminder time, shifts the danger hour, or changes a ritual's scheduled time.
+ * Idempotent — cancels all first, then re-schedules.
  */
 function useNotificationBootstrap() {
   const notificationsEnabled = useStore((s) => s.notificationsEnabled);
@@ -118,16 +119,53 @@ function useNotificationBootstrap() {
   const dangerHour = useStore((s) => s.dangerHour);
   const tone = useStore((s) => s.personalityProfile.tone);
   const currentStreak = useStore((s) => s.currentStreak);
+  const rituals = useStore((s) => s.rituals);
+  const setRitualNotificationId = useStore((s) => s.setRitualNotificationId);
+
+  // We hash the rituals' (id, scheduledTime, enabled, text) into a string so
+  // the effect only refires when something relevant to scheduling changes —
+  // not on every store write (e.g. reordering by drag would not retrigger).
+  const ritualSchedKey = rituals
+    .map((r) => `${r.id}:${r.enabled ? r.scheduledTime ?? '' : ''}:${r.text}`)
+    .join('|');
 
   useEffect(() => {
-    void notificationService.bootstrap({
-      enabled: notificationsEnabled,
-      dailyReminderTime,
-      dangerHour,
-      tone,
-      streak: currentStreak,
-    });
-  }, [notificationsEnabled, dailyReminderTime, dangerHour, tone, currentStreak]);
+    let cancelled = false;
+    (async () => {
+      await notificationService.bootstrap({
+        enabled: notificationsEnabled,
+        dailyReminderTime,
+        dangerHour,
+        tone,
+        streak: currentStreak,
+      });
+      if (cancelled) return;
+
+      // After bootstrap, refresh each ritual's scheduled reminder. Bootstrap
+      // cancel-all wipes their previous notification ids, so we re-schedule
+      // every enabled ritual that has a time.
+      if (!notificationsEnabled) {
+        // Clear stale ids so the store reflects reality.
+        for (const r of rituals) {
+          if (r.notificationId) setRitualNotificationId(r.id, null);
+        }
+        return;
+      }
+      for (const r of rituals) {
+        if (!r.enabled || !r.scheduledTime) {
+          if (r.notificationId) setRitualNotificationId(r.id, null);
+          continue;
+        }
+        const newId = await notificationService.scheduleRitualReminder(r.text, r.scheduledTime);
+        if (cancelled) return;
+        setRitualNotificationId(r.id, newId);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [notificationsEnabled, dailyReminderTime, dangerHour, tone, currentStreak, ritualSchedKey]);
 }
 
 export default function App() {

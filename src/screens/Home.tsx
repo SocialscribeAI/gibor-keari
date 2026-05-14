@@ -14,8 +14,8 @@ import { CheckInModal } from '../components/CheckInModal';
 import { StreakIncentiveBar } from '../components/StreakIncentiveBar';
 import { DangerMode } from '../components/DangerMode';
 import { OnboardingUpgradeBanner } from '../components/OnboardingUpgradeBanner';
-
-const MILESTONES = [7, 14, 30, 60, 90, 180, 365];
+import { AnchorCard } from '../components/AnchorCard';
+import { CELEBRATION_DAYS } from '../constants/milestones';
 
 export const Home: React.FC = () => {
   const {
@@ -31,7 +31,7 @@ export const Home: React.FC = () => {
     likeMantra,
     dislikeMantra,
   } = useStore();
-  const { currentStreak, level } = useStreak();
+  const { currentStreak, level, nextRank, daysToNextRank } = useStreak();
   const theme = useTheme();
 
   const [showFall, setShowFall] = useState(false);
@@ -45,7 +45,7 @@ export const Home: React.FC = () => {
   }, [syncStreak, rotateMantraIfNeeded]);
 
   useEffect(() => {
-    const hit = MILESTONES.find((m) => currentStreak === m && lastCelebratedMilestone !== m);
+    const hit = CELEBRATION_DAYS.find((m) => currentStreak === m && lastCelebratedMilestone !== m);
     if (hit) {
       setMilestoneToCelebrate(hit);
       setLastCelebratedMilestone(hit);
@@ -54,9 +54,12 @@ export const Home: React.FC = () => {
 
   if (!streakStart) return <VowScreen />;
 
-  const nextMilestone = MILESTONES.find((m) => m > currentStreak) || 365;
-  const prevMilestone = [...MILESTONES].reverse().find((m) => m <= currentStreak) || 0;
-  const progress = Math.max(0, Math.min(1, (currentStreak - prevMilestone) / (nextMilestone - prevMilestone)));
+  const nextMilestone = nextRank?.day ?? 365;
+  const lastReachedDay =
+    currentStreak >= 365 ? 365 : (CELEBRATION_DAYS.filter((d) => d <= currentStreak).pop() ?? 0);
+  const progress = nextRank
+    ? Math.max(0, Math.min(1, (currentStreak - lastReachedDay) / (nextMilestone - lastReachedDay)))
+    : 1;
 
   const today = new Date().toISOString().slice(0, 10);
   const todayEntry = calendarLog[today];
@@ -80,13 +83,29 @@ export const Home: React.FC = () => {
     <Screen>
       <OnboardingUpgradeBanner />
 
-      {/* Level label */}
-      <View className="items-center mt-2 mb-1">
-        <Text className="text-guard-accent text-[11px] font-black uppercase tracking-widest">{level}</Text>
+      {/* Rank badge — solid pill above the ring. Bigger, prouder than the old
+          plain-text label. */}
+      <View className="items-center mt-2 mb-2">
+        <View
+          style={{
+            paddingHorizontal: 16,
+            paddingVertical: 6,
+            borderRadius: 999,
+            backgroundColor: 'rgba(232,160,32,0.15)',
+            borderWidth: 1,
+            borderColor: 'rgba(232,160,32,0.45)',
+          }}
+        >
+          <Text
+            style={{ color: theme.accent, fontWeight: '900', letterSpacing: 2, fontSize: 11 }}
+          >
+            {level.toUpperCase()}
+          </Text>
+        </View>
       </View>
 
       {/* Streak ring */}
-      <View className="items-center justify-center mt-2 mb-5">
+      <View className="items-center justify-center mt-2 mb-3">
         <View style={{ width: 200, height: 200 }} className="items-center justify-center relative">
           <Svg width={200} height={200}>
             <Circle cx={100} cy={100} r={84} stroke={theme.hairline} strokeWidth={8} fill="none" />
@@ -104,12 +123,27 @@ export const Home: React.FC = () => {
             />
           </Svg>
           <View className="absolute inset-0 items-center justify-center">
-            <Text className="text-5xl font-black text-white">{currentStreak}</Text>
-            <Text className="text-white/60 text-[10px] uppercase tracking-widest mt-1">days</Text>
-            <Text className="text-white/35 text-[10px] mt-0.5">→ {nextMilestone}d</Text>
+            <Text className="text-6xl font-black text-white">{currentStreak}</Text>
+            <Text className="text-white/60 text-[10px] uppercase tracking-widest mt-1">days standing</Text>
           </View>
         </View>
       </View>
+
+      {/* Next-rank teaser. Replaces the old "→ 7d" footnote with the actual
+          rank name the user is hunting for. */}
+      {nextRank && (
+        <View className="items-center mb-5">
+          <Text className="text-white/45 text-[10px] uppercase tracking-widest">
+            Next rank
+          </Text>
+          <Text className="text-white text-sm font-black mt-0.5">
+            {nextRank.name}
+            <Text style={{ color: theme.muted, fontWeight: '700' }}>
+              {` · ${daysToNextRank} day${daysToNextRank === 1 ? '' : 's'}`}
+            </Text>
+          </Text>
+        </View>
+      )}
 
       {/* ─── THREE PRIMARY ACTIONS ─── */}
       <View className="flex-row gap-2.5 mb-3">
@@ -167,6 +201,9 @@ export const Home: React.FC = () => {
           </Text>
         </Pressable>
       </View>
+
+      {/* Anchor — identity + why surface */}
+      <AnchorCard />
 
       {/* Mantra with rating */}
       <View className="bg-guard-surface border border-guard-primary/30 rounded-2xl p-4 mb-3">

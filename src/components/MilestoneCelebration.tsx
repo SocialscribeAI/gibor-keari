@@ -5,6 +5,7 @@ import { Share2, X, Star, Gift } from 'lucide-react-native';
 import { useStore } from '../store/useStore';
 import { useTheme, BRAND } from '../constants/theme';
 import { LionMark } from './LionMark';
+import { rankForStreak } from '../constants/milestones';
 
 interface Props {
   day: number;
@@ -15,11 +16,12 @@ export const MilestoneCelebration: React.FC<Props> = ({ day, onClose }) => {
   const { vows } = useStore();
   const theme = useTheme();
   const reward = vows[day];
+  const rank = rankForStreak(day);
 
   const handleShare = async () => {
     try {
       await Share.share({
-        message: `${day} days standing strong as a lion. גיבור כארי. #${BRAND.nameShort}KeAri`,
+        message: `${day} days. ${rank.name}. גיבור כארי. #${BRAND.nameShort}KeAri`,
       });
     } catch (e) {
       // ignore
@@ -39,22 +41,30 @@ export const MilestoneCelebration: React.FC<Props> = ({ day, onClose }) => {
             transition={{ type: 'spring', damping: 15, delay: 200 }}
             className="items-center"
           >
-            <View className="w-24 h-24 rounded-[40px] bg-guard-accent/10 items-center justify-center border border-guard-accent/20 mb-8">
+            <View className="w-24 h-24 rounded-[40px] bg-guard-accent/10 items-center justify-center border border-guard-accent/20 mb-6">
               <LionMark size={56} color={theme.accent} accentColor={theme.text} />
             </View>
-            <Text className="text-sm font-black uppercase text-guard-accent mb-2" style={{ letterSpacing: 6 }}>Milestone Reached</Text>
-            <View className="flex-row items-center gap-3 mb-6">
-              <Star size={24} color={theme.accent} fill={theme.accent} />
-              <Text className="text-7xl font-black text-white">{day}</Text>
-              <Star size={24} color={theme.accent} fill={theme.accent} />
+            <Text className="text-[10px] font-black uppercase text-guard-accent mb-2" style={{ letterSpacing: 4 }}>
+              You earned the rank
+            </Text>
+            <Text className="text-3xl font-black text-white text-center mb-3" style={{ fontFamily: 'Outfit' }}>
+              {rank.name}
+            </Text>
+            <View className="flex-row items-center gap-3 mb-3">
+              <Star size={20} color={theme.accent} fill={theme.accent} />
+              <Text className="text-6xl font-black text-white">{day}</Text>
+              <Star size={20} color={theme.accent} fill={theme.accent} />
             </View>
-            <Text className="text-[10px] font-black uppercase text-guard-accent mb-10 py-3" style={{ letterSpacing: 2 }}>
+            <Text className="text-[10px] font-black uppercase text-white/50 mb-6" style={{ letterSpacing: 2 }}>
               Days Standing Strong
+            </Text>
+            <Text className="text-sm leading-6 text-white/80 text-center mb-8 italic" style={{ maxWidth: 280 }}>
+              {rank.tagline}
             </Text>
           </MotiView>
 
           {reward && (
-            <View className="mb-10 p-6 bg-guard-bg rounded-3xl border border-guard-primary/30 w-full">
+            <View className="mb-8 p-6 bg-guard-bg rounded-3xl border border-guard-primary/30 w-full">
               <View className="flex-row items-center gap-2 mb-3 justify-center">
                 <Gift size={14} color={theme.accent} />
                 <Text className="text-[10px] font-black uppercase text-white/40" style={{ letterSpacing: 2 }}>Your Earned Reward</Text>

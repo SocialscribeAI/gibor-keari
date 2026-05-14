@@ -181,6 +181,20 @@ export interface PersonalityProfile {
 // TYPES — event log & detailed tracking
 // =============================================================================
 
+/**
+ * A morning / daily ritual. The optional `scheduledTime` is an HH:mm 24h
+ * string (e.g. "07:00"). When set, the notification service schedules a daily
+ * reminder; `notificationId` is the expo-notifications identifier so we can
+ * cancel cleanly when the time changes or the ritual is deleted.
+ */
+export interface Ritual {
+  id: string;
+  text: string;
+  enabled: boolean;
+  scheduledTime?: string;
+  notificationId?: string;
+}
+
 export type LogEntry = 'win' | 'fall' | 'medium' | 'close-call';
 
 export type EmotionalTrigger =
@@ -541,6 +555,24 @@ export interface KnowledgeBaseEntry {
   relatedEntryIds?: string[];
 }
 
+// ---------------------------------------------------------------------------
+// Style signals — running averages nudged by 👍/👎 on coach replies. Coach
+// reads these on every turn and translates them into prompt directives.
+// Range: −1 (one extreme) … +1 (other extreme). 0 = neutral / no signal yet.
+// ---------------------------------------------------------------------------
+
+export interface StyleSignals {
+  preferredTone: number;             // −1 gentler / +1 harsher
+  preferredLength: number;           // −1 shorter / +1 longer
+  preferredSpiritualWeight: number;  // −1 less Torah / +1 more Torah
+  /** Number of 👎 in a row on any axis (resets on a 👍). Used to escalate. */
+  consecutiveDislikes: number;
+  /** Total feedbacks recorded — for telemetry / first-N gating. */
+  totalFeedbacks: number;
+}
+
+export type StyleAxis = 'preferredTone' | 'preferredLength' | 'preferredSpiritualWeight';
+
 export interface CoachKnowledgeBase {
   entries: KnowledgeBaseEntry[];
   currentAvodah: string;       // what the user is working on right now
@@ -662,6 +694,14 @@ const createEmptyKnowledgeBase = (): CoachKnowledgeBase => ({
   redFlags: [],
 });
 
+const createEmptyStyleSignals = (): StyleSignals => ({
+  preferredTone: 0,
+  preferredLength: 0,
+  preferredSpiritualWeight: 0,
+  consecutiveDislikes: 0,
+  totalFeedbacks: 0,
+});
+
 // =============================================================================
 // STATE
 // =============================================================================
@@ -685,7 +725,7 @@ interface GuardState {
   calendarNotes: Record<string, string>; // per-day free-text (§2.5)
   mantras: string[];
   dailyMantraIndex: number | null;
-  rituals: { id: string; text: string; enabled: boolean }[];
+  rituals: Ritual[];
   ritualStreak: number;
   lastRitualDate: string | null;
   segulotEnabled: boolean;
@@ -763,6 +803,13 @@ interface GuardState {
   // notes the coach writes/updates as it learns the user.
   coachKnowledgeBase: CoachKnowledgeBase;
 
+  // Style signals — running averages nudged by 👍/👎 feedback on coach replies.
+  styleSignals: StyleSignals;
+
+  // Per-message feedback: messageId -> 'up' | 'down'. Lets the UI render the
+  // current state of each rating button without re-querying anything.
+  coachMessageFeedback: Record<string, 'up' | 'down'>;
+
   // Last time the user interacted with the Coach screen (any send). Used by
   // basePreamble() to detect new sessions: 4+ hour gap = "[NEW SESSION]"
   lastCoachInteractionAt: string | null;
@@ -807,7 +854,11 @@ interface GuardState {
   setDailyMantra: (index: number) => void;
   addRitual: (ritual: string) => void;
   toggleRitual: (id: string) => void;
-  reorderRituals: (newRituals: { id: string; text: string; enabled: boolean }[]) => void;
+  reorderRituals: (newRituals: Ritual[]) => void;
+  /** Set or clear the per-ritual reminder time. `null` clears. HH:mm format. */
+  setRitualTime: (id: string, time: string | null) => void;
+  /** Internal: stash the expo-notifications id so we can cancel cleanly. */
+  setRitualNotificationId: (id: string, notificationId: string | null) => void;
   completeRitual: () => void;
   setVow: (day: number, reward: string) => void;
   setLastCelebratedMilestone: (day: number) => void;
@@ -853,6 +904,17 @@ interface GuardState {
 
   // Inference mode toggle (auto-write vs confirm-first)
   setInferenceMode: (mode: InferenceMode) => void;
+
+  // Style signal nudging — 👍/👎 buttons on coach replies call this.
+  // `direction` is +1 (push axis up) or −1 (push axis down). Each nudge
+  // moves the running average by ~0.05 toward the chosen direction.
+  nudgeStyleSignal: (axis: StyleAxis, direction: 1 | -1) => void;
+  recordCoachFeedback: (
+    messageId: string,
+    feedback: 'up' | 'down',
+    axes: Partial<Record<StyleAxis, 1 | -1>>,
+  ) => void;
+  clearCoachFeedback: (messageId: string) => void;
 
   // PIN lock toggles (the actual PIN hash is managed by lockService)
   setPinEnabled: (enabled: boolean) => void;
@@ -996,6 +1058,8 @@ export const useStore = create<GuardState>()(
 
       clinicalAssessment: createEmptyAssessment(),
       coachKnowledgeBase: createEmptyKnowledgeBase(),
+      styleSignals: createEmptyStyleSignals(),
+      coachMessageFeedback: {},
       lastCoachInteractionAt: null,
       inferenceMode: 'auto',
 
@@ -1211,6 +1275,22 @@ export const useStore = create<GuardState>()(
       },
 
       reorderRituals: (newRituals) => set({ rituals: newRituals }),
+
+      setRitualTime: (id, time) => {
+        set((state) => ({
+          rituals: state.rituals.map((r) =>
+            r.id === id ? { ...r, scheduledTime: time ?? undefined } : r,
+          ),
+        }));
+      },
+
+      setRitualNotificationId: (id, notificationId) => {
+        set((state) => ({
+          rituals: state.rituals.map((r) =>
+            r.id === id ? { ...r, notificationId: notificationId ?? undefined } : r,
+          ),
+        }));
+      },
 
       completeRitual: () => {
         const { ritualStreak, lastRitualDate } = get();
@@ -1513,6 +1593,59 @@ export const useStore = create<GuardState>()(
 
       setInferenceMode: (mode) => set({ inferenceMode: mode }),
 
+      // ---- Style-signal nudging ----
+      nudgeStyleSignal: (axis, direction) => {
+        const { styleSignals } = get();
+        const STEP = 0.05;
+        const current = styleSignals[axis] as number;
+        const next = Math.max(-1, Math.min(1, current + direction * STEP));
+        set({
+          styleSignals: {
+            ...styleSignals,
+            [axis]: next,
+          },
+        });
+      },
+
+      recordCoachFeedback: (messageId, feedback, axes) => {
+        const { styleSignals, coachMessageFeedback } = get();
+        const STEP = 0.05;
+        // Toggle off if the same button is pressed twice (un-rating).
+        if (coachMessageFeedback[messageId] === feedback) {
+          const cleared = { ...coachMessageFeedback };
+          delete cleared[messageId];
+          set({ coachMessageFeedback: cleared });
+          return;
+        }
+        // Apply nudges from inferred axes. 👍 pushes in the inferred direction;
+        // 👎 pushes the opposite way.
+        const sign = feedback === 'up' ? 1 : -1;
+        const nextSignals: StyleSignals = { ...styleSignals };
+        for (const [k, dir] of Object.entries(axes) as [StyleAxis, 1 | -1][]) {
+          const current = nextSignals[k] as number;
+          const moved = Math.max(-1, Math.min(1, current + sign * dir * STEP));
+          (nextSignals[k] as number) = moved;
+        }
+        if (feedback === 'down') {
+          nextSignals.consecutiveDislikes = (styleSignals.consecutiveDislikes ?? 0) + 1;
+        } else {
+          nextSignals.consecutiveDislikes = 0;
+        }
+        nextSignals.totalFeedbacks = (styleSignals.totalFeedbacks ?? 0) + 1;
+        set({
+          styleSignals: nextSignals,
+          coachMessageFeedback: { ...coachMessageFeedback, [messageId]: feedback },
+        });
+      },
+
+      clearCoachFeedback: (messageId) => {
+        const { coachMessageFeedback } = get();
+        if (!coachMessageFeedback[messageId]) return;
+        const next = { ...coachMessageFeedback };
+        delete next[messageId];
+        set({ coachMessageFeedback: next });
+      },
+
       // ---- PIN lock (mirror flags only — hash lives in SecureStore) ----
       setPinEnabled: (enabled) => set({ pinEnabled: enabled }),
       setPinHashPresent: (present) => set({ pinHashPresent: present }),
@@ -1578,6 +1711,8 @@ export const useStore = create<GuardState>()(
           aiDangerAnalysis: null,
           clinicalAssessment: createEmptyAssessment(),
           coachKnowledgeBase: createEmptyKnowledgeBase(),
+          styleSignals: createEmptyStyleSignals(),
+          coachMessageFeedback: {},
           lastCoachInteractionAt: null,
         });
       },
@@ -1814,7 +1949,7 @@ export const useStore = create<GuardState>()(
     {
       name: 'guard-user-profile',
       storage: createJSONStorage(() => AsyncStorage),
-      version: 12,
+      version: 13,
       // Migrate from v1 (4-axis profile) to v2 (12-axis profile + new fields).
       migrate: (persistedState: unknown, version: number) => {
         if (!persistedState || typeof persistedState !== 'object') return persistedState;
@@ -1913,6 +2048,12 @@ export const useStore = create<GuardState>()(
           // 5-step minimum). The new flow is version 2; the upgrade CTA fires
           // when hasCompletedOnboarding === true && onboardingVersion < 2.
           s.onboardingVersion = s.hasCompletedOnboarding ? 1 : 0;
+        }
+        if (version < 13) {
+          // Style-signal layer — 👍/👎 on coach replies move running averages
+          // that translate into prompt directives. Default neutral.
+          s.styleSignals = s.styleSignals ?? createEmptyStyleSignals();
+          s.coachMessageFeedback = s.coachMessageFeedback ?? {};
         }
         return s;
       },

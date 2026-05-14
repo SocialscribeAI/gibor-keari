@@ -109,7 +109,14 @@ export const PostFallProtocol: React.FC<Props> = ({ isOpen, onClose }) => {
     addWatchItem,
     personalityProfile,
     dangerWatchlist,
+    identityStatement,
+    whyReasons,
   } = useStore();
+  // Durable identity statement captured in onboarding — surfaced in step 8 so
+  // the user is reminded of who they said they are *before* writing a fresh
+  // 24h vow.
+  const durableIdentity = identityStatement;
+  const pinnedReasons = whyReasons;
 
   const [step, setStep] = useState(0);
   const [emotional, setEmotional] = useState<EmotionalTrigger[]>([]);
@@ -588,19 +595,70 @@ export const PostFallProtocol: React.FC<Props> = ({ isOpen, onClose }) => {
         return (
           <StepShell
             title="Who are you becoming?"
-            subtitle="One sentence. Your words. Shown at the top of Home for the next 24 hours."
+            subtitle="Your durable identity is your true north. Optional: leave yourself a fresh note for the next 24h."
           >
+            {/* Durable identity statement — set in onboarding, reminded here.
+                The fall doesn't erase who you are; this card refuses to let
+                the user forget. */}
+            {durableIdentity && (
+              <View
+                className="rounded-3xl p-5 mb-4"
+                style={{
+                  backgroundColor: 'rgba(232,160,32,0.10)',
+                  borderWidth: 1,
+                  borderColor: 'rgba(232,160,32,0.45)',
+                }}
+              >
+                <Text
+                  className="text-[10px] font-black uppercase mb-2"
+                  style={{ color: theme.accent, letterSpacing: 2 }}
+                >
+                  Who you said you are:
+                </Text>
+                <Text
+                  className="text-xl font-black leading-7"
+                  style={{ color: theme.text }}
+                >
+                  "I am the kind of man who {durableIdentity.replace(/^i am the kind of man who\s+/i, '')}."
+                </Text>
+                {pinnedReasons.length > 0 && (
+                  <View className="mt-3 pt-3" style={{ borderTopWidth: 1, borderTopColor: 'rgba(232,160,32,0.20)' }}>
+                    <Text
+                      className="text-[10px] font-black uppercase mb-2"
+                      style={{ color: theme.accent, letterSpacing: 2 }}
+                    >
+                      Why this matters to you:
+                    </Text>
+                    {pinnedReasons.map((r, i) => (
+                      <Text
+                        key={i}
+                        className="text-sm leading-5 mb-1"
+                        style={{ color: theme.text }}
+                      >
+                        · {r}
+                      </Text>
+                    ))}
+                  </View>
+                )}
+              </View>
+            )}
+
+            <Text
+              className="text-xs font-black uppercase mb-2"
+              style={{ color: theme.muted, letterSpacing: 2 }}
+            >
+              {durableIdentity ? 'A note for the next 24h (optional)' : 'A vow for the next 24h'}
+            </Text>
             <TextInput
               value={vow}
               onChangeText={setVow}
               placeholder="I am the kind of person who gets up."
               placeholderTextColor={theme.textDim}
               multiline
-              autoFocus
               className="bg-guard-surface border border-guard-accent/40 rounded-2xl px-4 py-4 text-white text-base min-h-[100px]"
             />
             <Text className="text-white/50 text-xs mt-3 leading-5">
-              This isn't a punishment. It's a reminder of your direction. You can edit it or clear it any time.
+              This isn't a punishment. It's a reminder of your direction. You can edit or clear it any time.
             </Text>
           </StepShell>
         );

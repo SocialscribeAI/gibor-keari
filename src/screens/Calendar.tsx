@@ -66,13 +66,15 @@ export const Calendar: React.FC = () => {
     return map;
   }, [fallEvents]);
 
+  // Solid blocks — full saturation for win / fall / medium so the calendar
+  // reads at a glance. Close-call stays at lower opacity to remain visually
+  // distinct from a full "medium / struggled" day (the difference matters:
+  // close-call = you almost fell and didn't, medium = you struggled all day).
   const statusColor = (status?: LogEntry) => {
-    if (status === 'win') return 'rgba(30, 138, 74, 0.7)';
-    if (status === 'fall') return 'rgba(192, 57, 43, 0.7)';
-    if (status === 'medium') return 'rgba(232, 160, 32, 0.7)';
-    if (status === 'close-call') return 'rgba(232, 160, 32, 0.35)';
-    // Subtle "empty cell" tint that shows in BOTH themes (theme.hairline is
-    // alpha-blended over guard-bg).
+    if (status === 'win') return 'rgba(30, 138, 74, 1)';
+    if (status === 'fall') return 'rgba(192, 57, 43, 1)';
+    if (status === 'medium') return 'rgba(232, 160, 32, 1)';
+    if (status === 'close-call') return 'rgba(232, 160, 32, 0.55)';
     return theme.hairline;
   };
 
@@ -135,17 +137,23 @@ export const Calendar: React.FC = () => {
         </Pressable>
       </View>
 
+      <Text
+        className="text-[10px] font-black uppercase mb-2"
+        style={{ color: theme.muted, letterSpacing: 2 }}
+      >
+        Showing
+      </Text>
       <View className="flex-row mb-4 gap-2">
         {([
-          { k: 'status', label: 'Status' },
-          { k: 'events', label: 'Events' },
-          { k: 'heatmap', label: 'Heatmap' },
-          { k: 'notes', label: 'Notes' },
+          { k: 'status', label: 'Status', desc: 'win / struggle / fall' },
+          { k: 'events', label: 'Events', desc: 'falls + close calls' },
+          { k: 'heatmap', label: 'Heatmap', desc: 'risk density' },
+          { k: 'notes', label: 'Notes', desc: 'your journal' },
         ] as const).map((o) => (
           <Pressable
             key={o.k}
             onPress={() => setLayer(o.k)}
-            className="flex-1 rounded-xl py-2 items-center"
+            className="flex-1 rounded-xl py-2.5 items-center"
             style={{
               backgroundColor: layer === o.k ? theme.accent : theme.surface,
               borderWidth: 1,
@@ -153,10 +161,17 @@ export const Calendar: React.FC = () => {
             }}
           >
             <Text
-              className="text-[11px] font-bold"
-              style={{ color: layer === o.k ? theme.onAccent : theme.mutedStrong }}
+              className="text-[11px] font-black"
+              style={{ color: layer === o.k ? theme.onAccent : theme.text }}
             >
               {o.label}
+            </Text>
+            <Text
+              className="text-[9px] mt-0.5"
+              style={{ color: layer === o.k ? theme.onAccent : theme.muted, opacity: layer === o.k ? 0.85 : 1 }}
+              numberOfLines={1}
+            >
+              {o.desc}
             </Text>
           </Pressable>
         ))}
@@ -185,9 +200,9 @@ export const Calendar: React.FC = () => {
 
           let bg = statusColor(status);
           if (layer === 'heatmap') {
-            if (status === 'fall') bg = 'rgba(192,57,43,0.7)';
-            else if (status === 'win') bg = 'rgba(30,138,74,0.5)';
-            else if (closeCalls > 0) bg = 'rgba(232,160,32,0.3)';
+            if (status === 'fall') bg = 'rgba(192,57,43,1)';
+            else if (status === 'win') bg = 'rgba(30,138,74,0.9)';
+            else if (closeCalls > 0) bg = 'rgba(232,160,32,0.5)';
             else bg = theme.hairline;
           } else if (layer === 'notes' && !hasNote) {
             bg = theme.hairline;
@@ -245,10 +260,10 @@ export const Calendar: React.FC = () => {
       </View>
 
       <View className="flex-row flex-wrap gap-x-4 gap-y-2 mt-4 px-1">
-        <LegendDot color="rgba(30,138,74,0.7)" label="Win" />
-        <LegendDot color="rgba(232,160,32,0.7)" label="Struggled" />
-        <LegendDot color="rgba(232,160,32,0.35)" label="Close call" />
-        <LegendDot color="rgba(192,57,43,0.7)" label="Fall" />
+        <LegendDot color="rgba(30,138,74,1)" label="Win" />
+        <LegendDot color="rgba(232,160,32,1)" label="Struggled" />
+        <LegendDot color="rgba(232,160,32,0.55)" label="Close call" />
+        <LegendDot color="rgba(192,57,43,1)" label="Fall" />
       </View>
 
       <View className="bg-guard-surface border border-guard-primary/30 rounded-3xl p-5 mt-6">

@@ -306,7 +306,38 @@ export const Profile: React.FC<Props> = ({
         </Text>
       </Pressable>
 
-      <Text className="text-guard-accent text-xs uppercase tracking-widest mb-3">Settings</Text>
+      {/* ─── ABOUT YOU ───
+          Identity-shaped content: who you are, what you're working on, why
+          this fight matters. The user's complaint was that this stuff felt
+          buried alongside technical settings. Now it sits in its own block
+          ahead of the knobs. */}
+      <Text className="text-guard-accent text-xs uppercase tracking-widest mb-3 mt-2" style={{ letterSpacing: 3 }}>
+        About you
+      </Text>
+      <Row icon={Flame} label="Your Why (identity · costs · ladder)" onPress={onNavigateToYourWhy} />
+      <Row icon={Sliders} label="Personalization (12 axes)" onPress={onNavigateToPersonalization} />
+      <Row icon={ShieldAlert} label="Watchlist (risk triggers)" onPress={onNavigateToWatchlist} />
+      <Row icon={Brain} label="Pattern insights" onPress={onNavigateToInsights} />
+      <Row icon={BookOpen} label="Mantras" onPress={onNavigateToMantras} />
+      <Row icon={Zap} label="Rituals" onPress={onNavigateToRituals} />
+      <Row icon={User} label="Rename identity" onPress={openRename} />
+
+      {/* ─── COACH ─── */}
+      <Text className="text-guard-accent text-xs uppercase tracking-widest mb-3 mt-6" style={{ letterSpacing: 3 }}>
+        Coach
+      </Text>
+      <Row icon={Sparkles} label="Coach style (how the AI talks to you)" onPress={onNavigateToCoachStyle} />
+      <Row icon={Bot} label="AI coach (bring your own key)" onPress={onNavigateToAiConfig} />
+      <Row icon={Zap} label="Tactics for the next urge" onPress={onNavigateToTactics ?? (() => {})} />
+      <Row icon={BookOpen} label="Learn (videos, podcasts, books)" onPress={onNavigateToLearn} />
+      <Row icon={Users} label="Community (partner, forums, leaderboard)" onPress={onNavigateToCommunity} />
+
+      {/* ─── SETTINGS ───
+          Technical knobs: privacy, lock, reminders, data export. The kind of
+          thing you visit once and forget. */}
+      <Text className="text-guard-accent text-xs uppercase tracking-widest mb-3 mt-6" style={{ letterSpacing: 3 }}>
+        Settings
+      </Text>
       <Pressable
         onPress={onNavigateToYourData}
         className="flex-row items-center rounded-2xl p-4 mb-3"
@@ -350,19 +381,7 @@ export const Profile: React.FC<Props> = ({
         </View>
         <ChevronRight size={18} color={theme.textDim} />
       </Pressable>
-      <Row icon={Flame} label="Your Why (identity · costs · ladder)" onPress={onNavigateToYourWhy} />
-      <Row icon={ShieldAlert} label="Watchlist (risk triggers)" onPress={onNavigateToWatchlist} />
-      <Row icon={Brain} label="Pattern insights" onPress={onNavigateToInsights} />
-      <Row icon={Zap} label="Tactics for the next urge" onPress={onNavigateToTactics ?? (() => {})} />
-      <Row icon={BookOpen} label="Learn (videos, podcasts, books)" onPress={onNavigateToLearn} />
-      <Row icon={Users} label="Community (partner, forums, leaderboard)" onPress={onNavigateToCommunity} />
-      <Row icon={Bot} label="AI coach (bring your own key)" onPress={onNavigateToAiConfig} />
-      <Row icon={Sparkles} label="Coach style (how the AI talks to you)" onPress={onNavigateToCoachStyle} />
-      <Row icon={Sliders} label="Personalization (12 axes)" onPress={onNavigateToPersonalization} />
       <Row icon={Bell} label="Reminders" onPress={onNavigateToReminders} />
-      <Row icon={BookOpen} label="Mantras" onPress={onNavigateToMantras} />
-      <Row icon={Zap} label="Rituals" onPress={onNavigateToRituals} />
-      <Row icon={User} label="Rename identity" onPress={openRename} />
       <Row icon={RefreshCw} label="Regenerate identity" onPress={regenerateIdentity} />
       <Row icon={Download} label="Export my data" onPress={handleExport} />
 
