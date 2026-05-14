@@ -12,12 +12,16 @@ import { PostFallProtocol } from '../components/PostFallProtocol';
 import { MilestoneCelebration } from '../components/MilestoneCelebration';
 import { CheckInModal } from '../components/CheckInModal';
 import { StreakIncentiveBar } from '../components/StreakIncentiveBar';
-import { DangerMode } from '../components/DangerMode';
 import { OnboardingUpgradeBanner } from '../components/OnboardingUpgradeBanner';
 import { AnchorCard } from '../components/AnchorCard';
 import { CELEBRATION_DAYS } from '../constants/milestones';
 
-export const Home: React.FC = () => {
+interface HomeProps {
+  /** Open the Danger Mode panel as an overlay. Activates the 60s lock too. */
+  onOpenDanger?: () => void;
+}
+
+export const Home: React.FC<HomeProps> = ({ onOpenDanger }) => {
   const {
     streakStart,
     syncStreak,
@@ -30,12 +34,12 @@ export const Home: React.FC = () => {
     setLastCelebratedMilestone,
     likeMantra,
     dislikeMantra,
+    activateDangerMode,
   } = useStore();
   const { currentStreak, level, nextRank, daysToNextRank } = useStreak();
   const theme = useTheme();
 
   const [showFall, setShowFall] = useState(false);
-  const [showDanger, setShowDanger] = useState(false);
   const [milestoneToCelebrate, setMilestoneToCelebrate] = useState<number | null>(null);
   const [mantraRated, setMantraRated] = useState<'liked' | 'disliked' | null>(null);
 
@@ -165,9 +169,12 @@ export const Home: React.FC = () => {
           )}
         </Pressable>
 
-        {/* DANGER — urge is building */}
+        {/* DANGER — activates the 60s lock and opens the panel */}
         <Pressable
-          onPress={() => setShowDanger(true)}
+          onPress={() => {
+            activateDangerMode();
+            onOpenDanger?.();
+          }}
           style={{
             flex: 1,
             paddingVertical: 16,
@@ -255,8 +262,6 @@ export const Home: React.FC = () => {
       <StreakIncentiveBar />
 
       {/* ─── Modals ─── */}
-      <DangerMode isOpen={showDanger} onClose={() => setShowDanger(false)} />
-
       <PostFallProtocol isOpen={showFall} onClose={() => setShowFall(false)} />
 
       {milestoneToCelebrate && (

@@ -6,6 +6,7 @@ import { Navigator } from './navigation/Navigator';
 import { PunishmentModeWrapper } from './components/PunishmentModeWrapper';
 import { SplashScreen } from './components/SplashScreen';
 import { CheckInModal } from './components/CheckInModal';
+import { DangerModeBanner, DangerModeReentryLock } from './components/DangerMode';
 import { UpdateBanner } from './components/UpdateBanner';
 import { AlphaBanner } from './components/AlphaBanner';
 import { LockScreen } from './screens/LockScreen';
@@ -186,9 +187,11 @@ export default function App() {
             <SafeAreaView edges={['top']} className="bg-guard-bg">
               <AlphaBanner />
               <UpdateBanner />
+              <DangerModeBanner />
             </SafeAreaView>
             <Navigator />
             <CheckInModal />
+            <DangerModeReentryLock />
           </PunishmentModeWrapper>
         )}
       </AnimatePresence>

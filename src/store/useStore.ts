@@ -787,6 +787,12 @@ interface GuardState {
   whyReasons: string[]; // up to 3 free-text reasons surfaced during weakness
   onboardingVersion: number; // bumped when the intake flow expands so existing users can re-enter
 
+  // Danger Mode lock — when active, a banner + re-entry lock are shown across
+  // the app. Persisted so force-quitting doesn't bypass it. `null` = not
+  // active. Activation stamps Date.now(); active state is derived from
+  // `Date.now() - activeSince < 60_000`.
+  dangerModeActiveSince: number | null;
+
   // Coach memory (persistent across sessions)
   coachMessages: CoachMessage[];
   coachSummary: string | null; // rolling AI-generated summary of older turns
@@ -974,6 +980,10 @@ interface GuardState {
   setOnboardingVersion: (version: number) => void;
   requestOnboardingRerun: () => void; // existing user opts into the v2 deep intake
   dismissOnboardingUpgrade: () => void; // existing user declines — never prompted again
+
+  // Danger Mode lock (new in v13)
+  activateDangerMode: () => void; // stamp Date.now() — starts 60s lock
+  clearDangerMode: () => void; // override / expiry — clears the timestamp
 }
 
 // =============================================================================
@@ -1049,6 +1059,8 @@ export const useStore = create<GuardState>()(
 
       whyReasons: [],
       onboardingVersion: 0,
+
+      dangerModeActiveSince: null,
 
       coachMessages: [],
       coachSummary: null,
@@ -1660,6 +1672,10 @@ export const useStore = create<GuardState>()(
       requestOnboardingRerun: () => set({ hasCompletedOnboarding: false }),
 
       dismissOnboardingUpgrade: () => set({ onboardingVersion: 2 }),
+
+      activateDangerMode: () => set({ dangerModeActiveSince: Date.now() }),
+
+      clearDangerMode: () => set({ dangerModeActiveSince: null }),
 
       rotateMantraIfNeeded: () => {
         const { mantras, mantraRotationSeed, lastMantraRotationDayIndex, coachStylePrefs } = get();

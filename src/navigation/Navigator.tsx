@@ -34,6 +34,7 @@ import { LeaderboardScreen } from '../screens/LeaderboardScreen';
 import { ForumsListScreen } from '../screens/ForumsListScreen';
 import { ForumThreadScreen } from '../screens/ForumThreadScreen';
 import { ForumComposeScreen } from '../screens/ForumComposeScreen';
+import { DangerModePanel } from '../components/DangerMode';
 
 import { BottomTab, TabType } from '../components/BottomTab';
 
@@ -43,7 +44,8 @@ type Overlay =
   | 'why' | 'watchlist' | 'insights' | 'aiconfig' | 'tactics' | 'learn'
   | 'coach-style' | 'clinical-profile' | 'coach-kb' | 'pin-settings'
   | 'community' | 'community-setup' | 'community-settings' | 'auth'
-  | 'partner' | 'leaderboard' | 'forums' | 'forum-thread' | 'forum-compose';
+  | 'partner' | 'leaderboard' | 'forums' | 'forum-thread' | 'forum-compose'
+  | 'danger';
 
 export const Navigator: React.FC = () => {
   const { hasCompletedOnboarding } = useStore();
@@ -78,6 +80,7 @@ export const Navigator: React.FC = () => {
       case 'clinical-profile': return <ClinicalProfileScreen onBack={close} />;
       case 'coach-kb': return <CoachKnowledgeBaseScreen onBack={close} />;
       case 'pin-settings': return <PinSettingsScreen onBack={close} />;
+      case 'danger': return <DangerModePanel onBack={close} />;
 
       case 'community':
         return <CommunityHubScreen
@@ -124,7 +127,7 @@ export const Navigator: React.FC = () => {
     if (overlayEl) return overlayEl;
 
     switch (activeTab) {
-      case 'home': return <Home />;
+      case 'home': return <Home onOpenDanger={() => open('danger')} />;
       case 'calendar': return <Calendar />;
       case 'tactics': return <TacticsSettingsScreen />;
       case 'coach': return <Coach />;
@@ -162,7 +165,7 @@ export const Navigator: React.FC = () => {
             onNavigateToPinSettings={() => open('pin-settings')}
           />
         );
-      default: return <Home />;
+      default: return <Home onOpenDanger={() => open('danger')} />;
     }
   };
 
